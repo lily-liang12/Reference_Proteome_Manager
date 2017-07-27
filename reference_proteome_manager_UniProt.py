@@ -374,11 +374,11 @@ class GUI:
         l = [(tv.set(k, col), k) for k in tv.get_children('')]
         l.sort(key=lambda x: int(x[0]), reverse=reverse)
 
-        # rearrange items in sorted positions
+        # Rearrange items in sorted positions
         for index, (val, k) in enumerate(l):
             tv.move(k, '', index)
 
-        # reverse sort next time
+        # Reverse sort next time
         tv.heading(col, command=lambda col_=col: self.sort_num_column(tv, col_, not reverse))
     
     def move_to_left(self):
