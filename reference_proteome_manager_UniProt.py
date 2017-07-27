@@ -74,7 +74,7 @@ class ReadMeEntry:
     """Container for data parsed from README table rows."""
     def __init__(self, line_entry):
         """Create placeholders for variables and then parse the line"""
-        self.kingdom = ""                           # major phylogenic categories
+        self.kingdom = ""                           # Major phylogenic categories
         self.proteome_ID = ""                       # UniProt refence proteome designation
         self.tax_ID = ""                            # NCBI taxonomy number
         self.oscode = ""                            # UniProt OSCODE string
@@ -85,7 +85,7 @@ class ReadMeEntry:
         self.short_name = ""                        # Shortened species name with underscores
         self.ftp_download_list = []                 # FTP downloadable files for each species
         self.ftp_file_path = ""                     # Kingdom branch path at FTP site
-        self.download_folder_name = ""              # more descriptive folder name to hold download files
+        self.download_folder_name = ""              # More descriptive folder name to hold download files
 
         # Regular expression for parsing README table rows       
         self.parser = re.compile('^(\S+)\s([0-9]+)\s(.+?)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+(.*)$')
@@ -100,10 +100,10 @@ class ReadMeEntry:
     def setAttributes(self, line):
         """Parse attributes from table line."""
         m = self.parser.match(line)
-        if not m:   # this can be used to skip over rows before or after the main table
+        if not m:   # This can be used to skip over rows before or after the main table
             raise ValueError('Invalid line')
 
-        # get the matching groups and load attributes
+        # Get the matching groups and load attributes
         groups = m.groups()
         self.proteome_ID = groups[0]
         self.tax_ID = groups[1]
@@ -125,15 +125,15 @@ class ReadMeEntry:
         """ This function will remove any characters found in the remove chars list from the
             target string.
         """
-        # remove invalid folder name characters
+        # Remove invalid folder name characters
         fixed_name = re.sub(self.illegal_pattern, "", self.species_name).strip()
         if dash:
             fixed_name = fixed_name.replace(" ", "-")
 
-        # make the local download folder name
+        # Make the local download folder name
         self.download_folder_name = '_'.join([date, self.proteome_ID, fixed_name])
 
-    # define all getter/setter methods
+    # Define all getter/setter methods
     def getProtID(self):
         return self.proteome_ID
     def setProtID(self, protID):
@@ -187,7 +187,7 @@ class GUI:
     """Main GUI class for application."""
     def __init__(self, URL, ref_prot_path, kingdom_paths, headers, banned_list):
         """Create object and set some state attributes."""
-        self.url = URL                      # url of UniProt FTP site
+        self.url = URL                      # Url of UniProt FTP site
         self.ftp = None                     # FTP object (set in login method)
         self.ref_prot_path = ref_prot_path  # Specifies top level directory of the Uniprot ftp database
         self.kingdom_paths = kingdom_paths  # List of directory names where files are located (kingdoms)
@@ -216,7 +216,7 @@ class GUI:
         try:
             self.ftp.quit()
         except:
-            pass # catch error if there is no FTP connection to close
+            pass # Catch error if there is no FTP connection to close
         
     def loadAllEntries(self):
         date = datetime.date.today()
@@ -345,7 +345,7 @@ class GUI:
                     entry.getKingdom(), entry.getSpeciesName()]
                     for entry in self.selected_entries]
 
-        # clear entries before importing
+        # Clear entries before importing
         for row in self.tree_left.get_children():
             self.tree_left.delete(row)
         for entry in sorted(entries):
@@ -363,11 +363,11 @@ class GUI:
         l = [(tv.set(k, col), k) for k in tv.get_children('')]
         l.sort(key=lambda x: x[0].lower(), reverse=reverse)
 
-        # rearrange items in sorted positions
+        # Rearrange items in sorted positions
         for index, (val, k) in enumerate(l):
             tv.move(k, '', index)
 
-        # reverse sort next time
+        # Reverse sort next time
         tv.heading(col, command=lambda col_=col: self.sort_text_column(tv, col_, not reverse))
     
     def sort_num_column(self, tv, col, reverse=False):
