@@ -419,7 +419,7 @@ class GUI:
     def save_to_defaults(self):
         answer = True
         # Throw a warning to overwrite if user is trying to save to defaults
-        if self.quit_save_state == "not triggered":  # check to make sure quit state wasn't triggered
+        if self.quit_save_state == "not triggered":  # Check to make sure quit state wasn't triggered
             if os.path.isfile("defaults_UniProt.pickle"):
                 answer = messagebox.askyesno("File Detected!",
                                              "A defaults.pickle file was already found. Would you like to overwrite?")
@@ -435,7 +435,7 @@ class GUI:
                 # Attempt to write data struct in byte form to defaults.pickle
                 items = self.tree_right.get_children()
                 databases = [self.tree_right.item(item)['values'] for item in items]
-                # remove duplicates
+                # Remove duplicates
                 db_set = set(tuple(x) for x in databases)
                 databases = [list(x) for x in db_set]
                 self.pickle_entries(databases)
@@ -459,7 +459,7 @@ class GUI:
             if initial:
                 # Load in entries from databases
                 databases = self.data["Databases"]
-                # save cwd path for save_to_defaults()
+                # Save cwd path for save_to_defaults()
                 self.import_root = os.getcwd()
                 self.update_status_bar("defaults_UniProt.pickle imported.")
             else:
@@ -485,7 +485,7 @@ class GUI:
                 self.tree_right.delete(row)
     
         for database in databases:
-            # make a new zombie list to parse kingdom from species name
+            # Make a new zombie list to parse kingdom from species name
             tax = database[0]
             canonical = database[1]
             additional = database[2]
@@ -497,14 +497,14 @@ class GUI:
             
     def download_databases(self):
         """Fetches the database files for the selected species."""
-        self.login()    # refresh the FTP connection
+        self.login()    # Refresh the FTP connection
         
-        # throw warning if no databases selected
+        # Throw warning if no databases selected
         if len(self.tree_right.get_children()) == 0:
             messagebox.showwarning("Empty Selection", "No databases were selected for download!")
-            return None  # exit function
+            return None  # Exit function
             
-        # get parent folder location for database download
+        # Get parent folder location for database download
         db_default = os.getcwd()
         abs_path = filedialog.askdirectory(parent=self.root, initialdir=db_default,
                                            title='Select container for UniProt downloads')
@@ -520,23 +520,23 @@ class GUI:
             pass
         os.chdir(uniprot_dir_path)
 
-        # get taxonomy ID numbers for right (download) list
+        # Get taxonomy ID numbers for right (download) list
         tax_id_list = [self.tree_right.item(entry)['values'][0] for entry in self.tree_right.get_children()]
         set_tax_id_list = list(set(tax_id_list))  # remove duplicates (if any)
         if len(tax_id_list) != len(set_tax_id_list):
             messagebox.showwarning("Duplicates found!", "Duplicate databases were selected and will be ignored!")
 
-        # get the entry objects for the right taxonomy numbers
+        # Get the entry objects for the right taxonomy numbers
         download_entries = [entry for entry in self.all_entries if int(entry.tax_ID) in set_tax_id_list]
 
-        # add normalized folder name attribute
+        # Add normalized folder name attribute
         [entry.makeFolderName(self.date) for entry in download_entries]
 
         for entry in download_entries:
-            # move to the FTP site branch where files are located
+            # Move to the FTP site branch where files are located
             self.ftp.cwd(entry.ftp_file_path)
                 
-            # set local location for the download
+            # Set local location for the download
             try:
                 os.mkdir(os.path.join(uniprot_dir_path, entry.download_folder_name))
                 os.chdir(os.path.join(uniprot_dir_path, entry.download_folder_name))
@@ -548,13 +548,13 @@ class GUI:
                 entry.snoop()
                 continue
 
-            # download reference proteome database(s)
+            # Download reference proteome database(s)
             for file in entry.ftp_download_list:
-                # skip any files that we do not want to download                    
+                # Skip any files that we do not want to download                    
                 if self.banned_file(file):
                     continue
                 
-                # download the file (skip if already dowloaded)
+                # Download the file (skip if already dowloaded)
 ##                if os.path.exists(os.path.join(uniprot_dir_path, entry.download_folder_name, file)):
 ##                    continue
                 self.update_status_bar("Downloading {} file".format(file))
@@ -577,7 +577,7 @@ class GUI:
         """Uncompresses canonical FASTA file and does some analysis. Also
         combines fasta and additional fasta files with decompression.
         """
-        # get the list of protein fasta files
+        # Get the list of protein fasta files
         temp_files = [x for x in entry.ftp_download_list if 'fasta' in x.lower()]
         fasta_files = []
         for f in temp_files:
@@ -593,11 +593,11 @@ class GUI:
             fasta_file = fasta_file + '_' + entry.short_name + '_all.fasta'
             fasta_obj_list.append(open(os.path.join(uniprot_dir_path, fasta_file), 'w'))
 
-        # set up to read the fasta file entries and init counters
+        # Set up to read the fasta file entries and init counters
         print('proteome:', entry.proteome_ID, 'species:', entry.species_name)
         p = fasta_lib.Protein()
 
-        # read entries and write to new file
+        # Read entries and write to new file
         for i, fasta in enumerate(fasta_files):
             sp_count = 0
             iso_count = 0
@@ -618,11 +618,11 @@ class GUI:
                 else:
                     p.printProtein(fasta_obj_list[i])
 
-            # print stats
+            # Print stats
             print('..database:', fasta)
             print('....tot_count:', p_count, 'sp count:', sp_count, 'tr count:', tr_count, 'isoform count:', iso_count)
 
-        # close output file(s)
+        # Close output file(s)
         for obj in fasta_obj_list:
             obj.close()
 
@@ -664,7 +664,7 @@ class GUI:
            
     def quit_gui(self):
         """Quits the GUI application."""
-        self.logout()   # close the FTP connection
+        self.logout()   # Close the FTP connection
         self.update_defaults()
         self.root.withdraw()
         self.root.update_idletasks()
@@ -794,7 +794,7 @@ class GUI:
                 self.tree_right.heading(col, text=col.title(), anchor=W,
                                        command=lambda col_=col: self.sort_text_column(self.tree_right, col_))
                 self.tree_right.column(col, minwidth=25, width=100, stretch=NO)                
-        self.tree_right.column(self.headers[-1], width=650, stretch=YES) # assumes species names are last
+        self.tree_right.column(self.headers[-1], width=650, stretch=YES) # Assumes species names are last
         
         rightScrollX = Scrollbar(self.tree_right, orient=HORIZONTAL)
         rightScrollX.pack(side=BOTTOM, fill=X)
@@ -828,7 +828,7 @@ class GUI:
         # open the FTP connection
         self.login()
         self.parseReadMe()      # Create Entry objects if there are no entry objects 
-        self.import_defaults(True)  # initial import of defaults
+        self.import_defaults(True)  # Initial import of defaults
         self.root.protocol("WM_DELETE_WINDOW", self.quit_gui)  # Override window close event
         self.root.mainloop()
 
@@ -845,4 +845,4 @@ if __name__ == '__main__':
     gui = GUI(URL, REF_PROT_PATH, KINGDOM_PATHS, HEADERS, BANNED)
     gui.create_gui()
 
-# end
+# End
