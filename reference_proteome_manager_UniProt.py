@@ -40,7 +40,13 @@ import pickle
 
 # Imports dependent on other files
 # This python file only uses built-in modules, no external downloads required
-import fasta_lib_Py3 as fasta_lib 
+try:
+    import fasta_lib_Py3 as fasta_lib
+    import add_extras_and_reverse as add_both
+    import reverse_fasta as add_rev
+except ImportError:
+    # print("Could not import all files.")
+    sys.exit("Imports failed!")
 
 # Helper Classes
 class Checkboxes(Frame):
