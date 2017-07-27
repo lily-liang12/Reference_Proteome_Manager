@@ -37,7 +37,6 @@ import datetime
 import re
 import copy
 import pickle
-import itertools
 
 # Imports dependent on other files
 # This python file only uses built-in modules, no external downloads required
