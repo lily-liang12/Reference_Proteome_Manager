@@ -40,7 +40,13 @@ import pickle
 
 # Imports dependent on other files
 # This python file only uses built-in modules, no external downloads required
-import fasta_lib_Py3 as fasta_lib 
+try:
+    import fasta_lib_Py3 as fasta_lib
+    import add_extras_and_reverse as add_both
+    import reverse_fasta as add_rev
+except ImportError:
+    # print("Could not import all files.")
+    sys.exit("Imports failed!")
 
 # Helper Classes
 class Checkboxes(Frame):
@@ -240,14 +246,14 @@ class GUI:
         listing = []
         self.ftp.retrlines('RETR README', listing.append)
 
-        # get the release version information
+        # Get the release version information
         for line in listing:
             if "release" in line.lower():
                 version = line.replace(',', '')
                 version = version.replace('_', '.')
                 self.date = version.split()[1]
 
-        # try to load entry objects from pickle file unless first time running, then user needs to save defaults
+        # Try to load entry objects from pickle file unless first time running, then user needs to save defaults
         try:
             exitParse = self.loadAllEntries()
             if exitParse:
@@ -255,7 +261,7 @@ class GUI:
         except FileNotFoundError:
             pass
         
-        # find and parse the table
+        # Find and parse the table
         header_index = listing.index('Proteome_ID Tax_ID  OSCODE     #(1)    #(2)    #(3)  Species Name')
         last_index = listing.index('Gene mapping files (*.gene2acc)')
         for line in listing[header_index:last_index]:
@@ -265,7 +271,7 @@ class GUI:
                 continue
             self.all_entries.append(entry)
 
-        # add the kingdom categories and download file lists
+        # Add the kingdom categories and download file lists
         self.get_kingdoms()
 
     def get_kingdoms(self):
@@ -273,19 +279,19 @@ class GUI:
         for kingdom in self.kingdom_paths:
             kingdom_proteome = {}
             kingdom_path = self.ref_prot_path + kingdom
-            self.ftp.cwd(kingdom_path)  # move into category location
+            self.ftp.cwd(kingdom_path)  # Move into category location
 
-            listing = []    # to hold file listing
-            self.ftp.retrlines('LIST', listing.append)   # get the listing and save
+            listing = []    # To hold file listing
+            self.ftp.retrlines('LIST', listing.append)   # Get the listing and save
 
-            # count the number of proteomes (each has several files)
+            # Count the number of proteomes (each has several files)
             for line in listing:
-                line = line.strip() # want last item, so strip EOL
-                fname = line.split()[-1] # get the file name
+                line = line.strip() # Want last item, so strip EOL
+                fname = line.split()[-1] # Get the file name
                 if fname.split('_')[0].startswith('UP'):
-                    key = fname.split('_')[0]   # parse the reference proteome string
+                    key = fname.split('_')[0]   # Parse the reference proteome string
 
-                    # save all filenames for each species
+                    # Save all filenames for each species
                     if key in kingdom_proteome:
                         kingdom_proteome[key].append(fname)
                     else:
@@ -310,18 +316,18 @@ class GUI:
         self.checkbox_values = list(self.checkboxes.get_state())
         kingdoms = dict(zip(self.kingdom_paths, self.checkbox_values))
 
-        # get the species and taxonomy substring filters
+        # Get the species and taxonomy substring filters
         species_entry = self.searchSpecies.get().lower()
         tax_entry = self.searchTax.get()
 
-        # filter for Kingdoms that were selected
+        # Filter for Kingdoms that were selected
         self.kingdom_selections = [key for key in kingdoms if kingdoms[key] == 1]        
         self.selected_entries = [entry for entry in self.all_entries if entry.kingdom in self.kingdom_selections]
 
-        # filter on taxonomy number substring
+        # Filter on taxonomy number substring
         self.selected_entries = [entry for entry in self.selected_entries if tax_entry in entry.getTaxID()]
 
-        # filter on species name substring
+        # Filter on species name substring
         self.selected_entries = [entry for entry in self.selected_entries if species_entry in entry.getSpeciesName().lower()]
 
     def get_filtered_proteome_list(self):
@@ -381,10 +387,10 @@ class GUI:
         tv.heading(col, command=lambda col_=col: self.sort_num_column(tv, col_, not reverse))
     
     def move_to_left(self):
-        selection = self.tree_right.selection()  # creates sets with elements "I001", etc.
+        selection = self.tree_right.selection()  # Creates sets with elements "I001", etc.
         
         for selected in selection:
-            selected_copy = self.tree_right.item(selected)  # creates a set of dicts
+            selected_copy = self.tree_right.item(selected)  # Creates a set of dicts
             self.tree_right.delete(selected)
             self.tree_left.insert('', 'end', values=selected_copy['values'])
         try:
@@ -676,7 +682,7 @@ class GUI:
         """Creates the main GUI window and starts the event loop."""
         self.root = Tk()
         self.root.title("UniProt Reference Proteome Downloader")
-        self.root.geometry("1250x650+250+150")
+        self.root.geometry("1250x650+150+50")
         self.root.minsize(1250, 650)
 
         # Check boxes and Import button Frame
@@ -713,7 +719,19 @@ class GUI:
         tax_label = Label(tax_frame, text="Taxonomy ID:")
         tax_label.pack(side=LEFT, padx=5, pady=5)
         self.searchTax = Entry(tax_frame)
-        self.searchTax.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=5)          
+        self.searchTax.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=5)
+
+        # Radiobuttons for contams and/or decoy databases
+##        rb_var = IntVar()
+##        rbutton_frame = LabelFrame(searchWindowFrame, text="Additional Database Types")
+##        rbutton_frame.pack(fill=X, padx=5, pady=5)
+##        forward_rb = Radiobutton(rbutton_frame, text="Forward Sequences Only", variable=rb_var, value=0)
+##        for_rev_rb = Radiobutton(rbutton_frame, text="Forward and Reverse Sequences", variable=rb_var, value=1)
+##        all_rb = Radiobutton(rbutton_frame, text="Forward, Reverse, and Common Contaminants", variable=rb_var,
+##                             value=2)
+##        forward_rb.pack(padx=5, pady=5, anchor=W)
+##        for_rev_rb.pack(padx=5, pady=5, anchor=W)
+##        all_rb.pack(padx=5, pady=5, anchor=W)
 
         ## Show filtered list button and reset filters button
         filter_button = Button(searchWindowFrame, text="Show Filtered List", command=self.get_filtered_proteome_list)
@@ -758,7 +776,7 @@ class GUI:
         
         
         ## Menu Buttons
-        buttonFrame = Frame(entryFrame)
+        buttonFrame = LabelFrame(entryFrame, text="Menu Buttons")
         buttonFrame.pack(side=LEFT)
 
         addButton = Button(buttonFrame, text="Add Proteome(s)", command=self.move_to_right)
@@ -776,7 +794,14 @@ class GUI:
         importButton = Button(buttonFrame, text="Import Defaults", command=self.import_defaults)
         importButton.pack()
         importButton.config(width=15)
-        
+
+        downloadButton = Button(buttonFrame, text="Download", command=self.download_databases)
+        downloadButton.pack()
+        downloadButton.config(width=15)
+
+        quitButton = Button(buttonFrame, text="Quit", command=self.quit_gui)
+        quitButton.pack()
+        quitButton.config(width=15)
 
         ## Right Window
         rightWindowFrame = LabelFrame(entryFrame, text="Selected Proteomes")
@@ -809,14 +834,6 @@ class GUI:
         # Miscellaneous Frame
         miscFrame = Frame(self.root)
         miscFrame.pack(side=BOTTOM, fill=X, padx=5, pady=5)
-
-        ## Download button
-        downloadButton = Button(miscFrame, text="Download Databases", command=self.download_databases)
-        downloadButton.pack(padx=5, pady=5)
-
-        # Quit button
-        quitButton = Button(miscFrame, text="Quit", command=self.quit_gui)
-        quitButton.pack(padx=5, pady=5)
 
         # Status Bar
         status_frame = LabelFrame(miscFrame, text="Status")
