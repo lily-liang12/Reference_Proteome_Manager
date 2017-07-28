@@ -682,7 +682,7 @@ class GUI:
         """Creates the main GUI window and starts the event loop."""
         self.root = Tk()
         self.root.title("UniProt Reference Proteome Downloader")
-        self.root.geometry("1250x850+150+50")
+        self.root.geometry("1250x650+150+50")
         self.root.minsize(1250, 650)
 
         # Check boxes and Import button Frame
@@ -776,7 +776,7 @@ class GUI:
         
         
         ## Menu Buttons
-        buttonFrame = Frame(entryFrame)
+        buttonFrame = LabelFrame(entryFrame, text="Menu Buttons")
         buttonFrame.pack(side=LEFT)
 
         addButton = Button(buttonFrame, text="Add Proteome(s)", command=self.move_to_right)
@@ -794,7 +794,14 @@ class GUI:
         importButton = Button(buttonFrame, text="Import Defaults", command=self.import_defaults)
         importButton.pack()
         importButton.config(width=15)
-        
+
+        downloadButton = Button(buttonFrame, text="Download", command=self.download_databases)
+        downloadButton.pack()
+        downloadButton.config(width=15)
+
+        quitButton = Button(buttonFrame, text="Quit", command=self.quit_gui)
+        quitButton.pack()
+        quitButton.config(width=15)
 
         ## Right Window
         rightWindowFrame = LabelFrame(entryFrame, text="Selected Proteomes")
@@ -827,14 +834,6 @@ class GUI:
         # Miscellaneous Frame
         miscFrame = Frame(self.root)
         miscFrame.pack(side=BOTTOM, fill=X, padx=5, pady=5)
-
-        ## Download button
-        downloadButton = Button(miscFrame, text="Download Databases", command=self.download_databases)
-        downloadButton.pack(padx=5, pady=5)
-
-        # Quit button
-        quitButton = Button(miscFrame, text="Quit", command=self.quit_gui)
-        quitButton.pack(padx=5, pady=5)
 
         # Status Bar
         status_frame = LabelFrame(miscFrame, text="Status")
