@@ -682,7 +682,7 @@ class GUI:
         """Creates the main GUI window and starts the event loop."""
         self.root = Tk()
         self.root.title("UniProt Reference Proteome Downloader")
-        self.root.geometry("1250x650+250+150")
+        self.root.geometry("1250x850+150+50")
         self.root.minsize(1250, 650)
 
         # Check boxes and Import button Frame
@@ -719,7 +719,19 @@ class GUI:
         tax_label = Label(tax_frame, text="Taxonomy ID:")
         tax_label.pack(side=LEFT, padx=5, pady=5)
         self.searchTax = Entry(tax_frame)
-        self.searchTax.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=5)          
+        self.searchTax.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=5)
+
+        # Radiobuttons for contams and/or decoy databases
+##        rb_var = IntVar()
+##        rbutton_frame = LabelFrame(searchWindowFrame, text="Additional Database Types")
+##        rbutton_frame.pack(fill=X, padx=5, pady=5)
+##        forward_rb = Radiobutton(rbutton_frame, text="Forward Sequences Only", variable=rb_var, value=0)
+##        for_rev_rb = Radiobutton(rbutton_frame, text="Forward and Reverse Sequences", variable=rb_var, value=1)
+##        all_rb = Radiobutton(rbutton_frame, text="Forward, Reverse, and Common Contaminants", variable=rb_var,
+##                             value=2)
+##        forward_rb.pack(padx=5, pady=5, anchor=W)
+##        for_rev_rb.pack(padx=5, pady=5, anchor=W)
+##        all_rb.pack(padx=5, pady=5, anchor=W)
 
         ## Show filtered list button and reset filters button
         filter_button = Button(searchWindowFrame, text="Show Filtered List", command=self.get_filtered_proteome_list)
