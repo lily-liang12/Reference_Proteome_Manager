@@ -863,7 +863,6 @@ class GUI:
         self.tree_right.config(yscrollcommand=rightScrollY.set, xscrollcommand=rightScrollX.set)
         rightScrollY.config(command = self.tree_right.yview)
         rightScrollX.config(command = self.tree_right.xview)
-
         
         # Miscellaneous Frame
         miscFrame = Frame(self.root)
