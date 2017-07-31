@@ -9,7 +9,8 @@ A [User Guide](User%20Guide.pptx) is included in this repo to help users. Please
 This program was written using Python v.3.6.2 on Windows 7.
 The dependent files are "fasta_lib_Py3.py" and "reverse_fasta.py" which are required in order for "reference_proteome_manager_UniProt.py" to run.
 ### Installing
-Click [here](https://www.python.org/downloads/release/python-362/) to download Python 3.6.2\n
+Click [here](https://www.python.org/downloads/release/python-362/) to download Python 3.6.2
+
 Download this repo as a .zip file or clone it to access the files.
 
 ## Authors
