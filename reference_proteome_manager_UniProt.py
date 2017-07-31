@@ -26,8 +26,6 @@ Direct questions to:
 Technology & Research Collaborations, Oregon Health & Science University,
 Ph: 503-494-8200, FAX: 503-494-4729, Email: techmgmt@ohsu.edu.
 """
-
-"""TODO: defaults path is screwed up I think"""
 # Built-in module imports
 from tkinter import *
 from tkinter.ttk import *
@@ -45,7 +43,7 @@ from pathlib import PureWindowsPath
 # This python file only uses built-in modules, no external downloads required
 try:
     import fasta_lib_Py3 as fasta_lib
-    import reverse_fasta_PW2 as add_rev
+    import reverse_fasta as add_rev
 except ImportError:
     print("Could not import all files.")
     sys.exit("Imports failed!")
@@ -204,9 +202,9 @@ class GUI:
         self.date = ""                          # This should be a UniProt version (i.e. 2017.07 for July release)        
         self.headers = headers                  # Needed for columns in tables
         self.proteome_IDs = []                  # List of unique proteome IDs
-        self.import_root = ""                   # Path location of defaults.pickle
+        self.import_root = os.getcwd()          # Path location of defaults.pickle
         self.data = None                        # Data from pickle file
-        self.quit_save_state = ""               # Specifically refers to event when user wants to save database after quitting program
+        self.quit_save_state = "not triggered"  # Specifically refers to event when user wants to save database after quitting program
                 
         # List of characters that cannot be in folder names
         self.illegal_characters = r"[\\#%&{}/<>*?:]"
@@ -365,6 +363,7 @@ class GUI:
         self.checkboxes.check_all()
         self.searchSpecies.delete(0, END)
         self.searchTax.delete(0, END)
+        self.rb_var.set(2)
         
     def sort_text_column(self, tv, col, reverse=False):
         l = [(tv.set(k, col), k) for k in tv.get_children('')]
@@ -415,6 +414,12 @@ class GUI:
     def pickle_entries(self, databases):
         """Saves list of all entry objects into defaults.pickle"""
         text = {"Databases":databases, "Date":self.date, "Entries":self.all_entries}
+        # Make sure we are in the correct folder
+        try:
+            os.chdir(self.import_root)
+        except OSError:
+            print("OSError occurred during pickling. Cwd: {}".format(os.getcwd()))
+        
         with open('defaults_UniProt.pickle', 'wb') as file:
             pickle.dump(text, file)
 
@@ -467,7 +472,6 @@ class GUI:
                 # Load in entries from databases
                 databases = self.data["Databases"]
                 # Save cwd path for save_to_defaults()
-                self.import_root = os.getcwd()
                 self.update_status_bar("defaults_UniProt.pickle imported.")
             else:
                 self.import_root = filedialog.askopenfilename().rsplit("/", 1)[0] + "/"  
@@ -481,6 +485,7 @@ class GUI:
             return None
         except OSError:
             messagebox.showwarning("Invalid File!", "Invalid file selection!")
+            return None
         except TypeError:
             self.update_status_bar("No defaults imported/defaults could not be found")
             # print("If self.data is None, self.data hasn't been initialized yet: ", type(self.data))
@@ -665,13 +670,15 @@ class GUI:
     def update_defaults(self):
         """If the entries in right tree do not match original defaults file, ask user to save updated list"""
         tree_items = [self.tree_right.item(entry)['values'] for entry in self.tree_right.get_children()]
-        
+
+        # Get data from current defaults file
         try:
             self.data = self.unpickle_entries()
         except FileNotFoundError:
             # print("First time defaults file has been created.")
             self.pickle_entries([])
-            
+
+        # Match current selected database to defaults
         try:
             if tree_items != self.data["Databases"]:
                 answer = messagebox.askyesno("Unsaved Progress",
@@ -679,13 +686,12 @@ class GUI:
                 if answer:
                     self.quit_save_state = "triggered"
                     self.save_to_defaults()
-        except TypeError:
-            if len(self.tree_right.get_children()) > 0:
-                answer = messagebox.askyesno("Unsaved Progress",
-                                             "Would you like to save currently selected databases to defaults?")
-                if answer:
-                    self.save_to_defaults()
-            return None
+        except TypeError:  # Triggers when self.data hasn't been initialized yet
+            answer = messagebox.askyesno("Unsaved Progress",
+                                         "Would you like to save currently selected databases to defaults?")
+            if answer:
+                self.quit_save_state = "triggered"
+                self.save_to_defaults()
         
     def update_status_bar(self, _text):
         """Updates status bar with new text"""
@@ -708,7 +714,7 @@ class GUI:
         """Creates the main GUI window and starts the event loop."""
         self.root = Tk()
         self.root.title("UniProt Reference Proteome Downloader")
-        self.root.geometry("1250x650+150+50")
+        self.root.geometry("1250x750+150+50")
         self.root.minsize(1250, 650)
 
         # Check boxes and Import button Frame
