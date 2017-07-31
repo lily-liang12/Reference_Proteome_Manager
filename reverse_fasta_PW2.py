@@ -40,7 +40,7 @@ MAKE_REVERSE = False
 MAKE_BOTH = True
 
 
-def fasta_reverse(fasta_file, forward=False, reverse=False, both=True):
+def fasta_reverse(fasta_file, forward=False, reverse=False, both=True, _path=""):
     """Adds contaminants and reverses entries for a FASTA protein database.
 
     Call with single fasta file name. If "forward", make sequences plus contaminants,
@@ -74,15 +74,19 @@ def fasta_reverse(fasta_file, forward=False, reverse=False, both=True):
 
     # try to find the contaminants database file
     try:
-        if os.path.exists('all_contams_fixed.fasta'):
-            _file = 'all_contams_fixed.fasta'
-            print('...contams file found:', os.path.realpath(_file))
+        # If no contam file path provided, search for it in current directory
+        if not _path:
+            if os.path.exists('all_contams_fixed.fasta'):
+                _file = 'all_contams_fixed.fasta'
+                print('...contams file found:', os.path.realpath(_file))
+            else:
+                path = os.path.split(fasta_file)[0]
+                _file = os.path.join(path, 'all_contams_fixed.fasta')
+                print('trying:', _file)
         else:
-            path = os.path.split(fasta_file)[0]
-            _file = os.path.join(path, 'all_contams_fixed.fasta')
-            print('trying:', _file)
-
-        # create reader and fetch contaminants           
+            _file = os.path.join(_path, 'all_contams_fixed.fasta')
+            
+        # create reader and fetch contaminants
         f = fasta_lib.FastaReader(_file)
         while f.readNextProtein(prot, check_for_errs=True):
             pcount += 1
