@@ -26,6 +26,8 @@ Direct questions to:
 Technology & Research Collaborations, Oregon Health & Science University,
 Ph: 503-494-8200, FAX: 503-494-4729, Email: techmgmt@ohsu.edu.
 """
+
+"""TODO: defaults path is screwed up I think"""
 # Built-in module imports
 from tkinter import *
 from tkinter.ttk import *
@@ -37,15 +39,15 @@ import datetime
 import re
 import copy
 import pickle
+from pathlib import PureWindowsPath
 
 # Imports dependent on other files
 # This python file only uses built-in modules, no external downloads required
 try:
     import fasta_lib_Py3 as fasta_lib
-    import add_extras_and_reverse as add_both
-    import reverse_fasta as add_rev
+    import reverse_fasta_PW2 as add_rev
 except ImportError:
-    # print("Could not import all files.")
+    print("Could not import all files.")
     sys.exit("Imports failed!")
 
 # Helper Classes
@@ -192,20 +194,20 @@ class GUI:
     """Main GUI class for application."""
     def __init__(self, URL, ref_prot_path, kingdom_paths, headers, banned_list):
         """Create object and set some state attributes."""
-        self.url = URL                      # Url of UniProt FTP site
-        self.ftp = None                     # FTP object (set in login method)
-        self.ref_prot_path = ref_prot_path  # Specifies top level directory of the Uniprot ftp database
-        self.kingdom_paths = kingdom_paths  # List of directory names where files are located (kingdoms)
-        self.kingdom_selections = []        # List of subpaths user specified
-        self.all_entries = []               # List of selected entry object attributes
-        self.banned_list = banned_list      # List of file identifiers to be omitted when downloading
-        self.date = ""                      # This should be a UniProt version (i.e. 2017.07 for July release)        
-        self.headers = headers              # Needed for columns in tables
-        self.proteome_IDs = []              # List of unique proteome IDs
-        self.import_root = ""               # Path location of defaults.pickle
-        self.data = None                    # Data from pickle file
-        self.quit_save_state = ""           # Specifically refers to event when user wants to save database after quitting program
-        
+        self.url = URL                          # Url of UniProt FTP site
+        self.ftp = None                         # FTP object (set in login method)
+        self.ref_prot_path = ref_prot_path      # Specifies top level directory of the Uniprot ftp database
+        self.kingdom_paths = kingdom_paths      # List of directory names where files are located (kingdoms)
+        self.kingdom_selections = []            # List of subpaths user specified
+        self.all_entries = []                   # List of selected entry object attributes
+        self.banned_list = banned_list          # List of file identifiers to be omitted when downloading
+        self.date = ""                          # This should be a UniProt version (i.e. 2017.07 for July release)        
+        self.headers = headers                  # Needed for columns in tables
+        self.proteome_IDs = []                  # List of unique proteome IDs
+        self.import_root = ""                   # Path location of defaults.pickle
+        self.data = None                        # Data from pickle file
+        self.quit_save_state = ""               # Specifically refers to event when user wants to save database after quitting program
+                
         # List of characters that cannot be in folder names
         self.illegal_characters = r"[\\#%&{}/<>*?:]"
 
@@ -356,7 +358,7 @@ class GUI:
         for entry in sorted(entries):
             self.tree_left.insert('', 'end', values=entry)
 
-        self.update_status_bar("List updated with %s entries" % len(self.selected_entries))
+        self.update_status_bar("List updated with %s entries" % len(self.selected_entries))        
         
     def reset_filters(self):
         """Resets filters to defaults."""
@@ -499,6 +501,25 @@ class GUI:
 
             clean_database = [tax, canonical, additional, kingdom, species_name]
             self.tree_right.insert('', 'end', values=clean_database)
+
+    def addRevSequences(self, fasta_file, contam_location):
+        """Gets selection value from radiobuttons and then passes those values to imported fasta_reverse function.
+        More documentation on how fasta_reverse works can be found in the reverse_fasta.py file.
+        """
+        rb_values = self.rb_var.get()
+        # Initially set everything to false
+        forward = False
+        reverse = False
+        both = False
+        if rb_values == 0:
+            forward = True
+        elif rb_values == 1:
+            reverse = True
+        elif rb_values == 2:
+            both = True
+        else:
+            print("Error occurred in determining radiobutton values!")
+        add_rev.fasta_reverse(fasta_file, forward, reverse, both, contam_location)
             
     def download_databases(self):
         """Fetches the database files for the selected species."""
@@ -559,7 +580,8 @@ class GUI:
                 if self.banned_file(file):
                     continue
                 
-                # Download the file (skip if already dowloaded)
+                # Download the file
+##                #(skip if already dowloaded)
 ##                if os.path.exists(os.path.join(uniprot_dir_path, entry.download_folder_name, file)):
 ##                    continue
                 self.update_status_bar("Downloading {} file".format(file))
@@ -627,6 +649,11 @@ class GUI:
             print('..database:', fasta)
             print('....tot_count:', p_count, 'sp count:', sp_count, 'tr count:', tr_count, 'isoform count:', iso_count)
 
+            # Add forward/reverse/contams
+            cwd = PureWindowsPath(os.getcwd())
+            contam_location = cwd.parents[1]  # Contams file is 2 directories up
+            self.addRevSequences(fasta, contam_location)
+
         # Close output file(s)
         for obj in fasta_obj_list:
             obj.close()
@@ -660,7 +687,6 @@ class GUI:
                     self.save_to_defaults()
             return None
         
-
     def update_status_bar(self, _text):
         """Updates status bar with new text"""
         self.status_bar.config(text=_text)
@@ -722,16 +748,16 @@ class GUI:
         self.searchTax.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=5)
 
         # Radiobuttons for contams and/or decoy databases
-##        rb_var = IntVar()
-##        rbutton_frame = LabelFrame(searchWindowFrame, text="Additional Database Types")
-##        rbutton_frame.pack(fill=X, padx=5, pady=5)
-##        forward_rb = Radiobutton(rbutton_frame, text="Forward Sequences Only", variable=rb_var, value=0)
-##        for_rev_rb = Radiobutton(rbutton_frame, text="Forward and Reverse Sequences", variable=rb_var, value=1)
-##        all_rb = Radiobutton(rbutton_frame, text="Forward, Reverse, and Common Contaminants", variable=rb_var,
-##                             value=2)
-##        forward_rb.pack(padx=5, pady=5, anchor=W)
-##        for_rev_rb.pack(padx=5, pady=5, anchor=W)
-##        all_rb.pack(padx=5, pady=5, anchor=W)
+        self.rb_var = IntVar()
+        rbutton_frame = LabelFrame(optionFrame, text="Additional Database Types")
+        rbutton_frame.pack(fill=X, padx=5, pady=5)
+        forward_rb = Radiobutton(rbutton_frame, text="Forward Sequences Only", variable=self.rb_var, value=0)
+        rev_rb = Radiobutton(rbutton_frame, text="Reverse Sequences Only", variable=self.rb_var, value=1)
+        for_rev_rb = Radiobutton(rbutton_frame, text="Forward and Reverse Sequences", variable=self.rb_var, value=2)
+        forward_rb.pack(padx=5, pady=5, anchor=W)
+        rev_rb.pack(padx=5, pady=5, anchor=W)
+        for_rev_rb.pack(padx=5, pady=5, anchor=W)
+        self.rb_var.set(2)  # Set BOTH to default
 
         ## Show filtered list button and reset filters button
         filter_button = Button(searchWindowFrame, text="Show Filtered List", command=self.get_filtered_proteome_list)
@@ -755,11 +781,12 @@ class GUI:
             if col in ["TAX ID", "CANONICAL ENTRIES", "ADDITIONAL ENTRIES"]:
                 self.tree_left.heading(col, text=col.title(),
                                        command=lambda col_=col: self.sort_num_column(self.tree_left, col_))
-                self.tree_left.column(col, minwidth=25, width=100, stretch=NO, anchor=E)
+                self.tree_left.column(col, minwidth=25, width=105, stretch=NO, anchor=E)
             else:
-                self.tree_left.heading(col, text=col.title(), anchor=W,
+                self.tree_left.heading(col, text=col.title(),
                                        command=lambda col_=col: self.sort_text_column(self.tree_left, col_))
-                self.tree_left.column(col, minwidth=25, width=100, stretch=NO)                
+                self.tree_left.column(col, minwidth=25, width=105, stretch=NO)
+        self.tree_left.heading(self.headers[-1], anchor=W)
         self.tree_left.column(self.headers[-1], minwidth=25, width=650, stretch=YES)  # assumes species name is always last
 
     
@@ -813,11 +840,12 @@ class GUI:
             if col in ["TAX ID", "CANONICAL ENTRIES", "ADDITIONAL ENTRIES"]:
                 self.tree_right.heading(col, text=col.title(),
                                        command=lambda col_=col: self.sort_num_column(self.tree_right, col_))
-                self.tree_right.column(col, minwidth=25, width=100, stretch=NO, anchor=E)
+                self.tree_right.column(col, minwidth=25, width=105, stretch=NO, anchor=E)
             else:
-                self.tree_right.heading(col, text=col.title(), anchor=W,
+                self.tree_right.heading(col, text=col.title(), 
                                        command=lambda col_=col: self.sort_text_column(self.tree_right, col_))
-                self.tree_right.column(col, minwidth=25, width=100, stretch=NO)                
+                self.tree_right.column(col, minwidth=25, width=105, stretch=NO)
+        self.tree_left.heading(self.headers[-1], anchor=W)
         self.tree_right.column(self.headers[-1], width=650, stretch=YES) # Assumes species names are last
         
         rightScrollX = Scrollbar(self.tree_right, orient=HORIZONTAL)
