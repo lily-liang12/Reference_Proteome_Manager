@@ -483,8 +483,8 @@ class GUI:
                 # Save cwd path for save_to_defaults()
                 self.update_status_bar("defaults_UniProt.pickle imported.")
             else:
-                self.import_root = filedialog.askopenfilename().rsplit("/", 1)[0] + "/"  
-                os.chdir(self.import_root)
+                import_path = filedialog.askopenfilename().rsplit("/", 1)[0] + "/"
+                os.chdir(import_path)
 
                 self.data = self.unpickle_entries()
                 databases = self.data["Databases"]
@@ -533,8 +533,10 @@ class GUI:
         elif decoy == 1 and contams == 0:
             reverse = True
             contam_location = os.path.join(contam_location, "block")  # Prevent script from finding contams file
-        elif decoy ==0 and contams == 1:
+        elif decoy == 0 and contams == 1:
             forward = True
+        elif decoy == 0 and contams ==0:  # Let's be explicit just in case
+            contam_location = os.path.join(contam_location, "block")
         else:
             print("Error occurred in determining checkbox values or no selection made!")
         add_rev.fasta_reverse(fasta_file, forward, reverse, both, contam_location)
