@@ -224,16 +224,27 @@ class GUI:
             pass # Catch error if there is no FTP connection to close
         
     def loadAllEntries(self):
-        date = datetime.date.today()
-        todays_date = "{}.0{}".format(date.year, date.month)
         self.data = self.unpickle_entries()
-        self.date = self.data["Date"]
+        date = self.data["Date"]
         entries = self.data["Entries"]
 
         exitParse = False
 
-        # If today's date matches current database version, then load entries from file
-        if todays_date == self.date:
+        # If defaults file date matches current database version, then load entries from file
+        self.login()
+        self.ftp.cwd(self.ref_prot_path)  # move into README file
+        listing = []
+        self.ftp.retrlines('RETR README', listing.append)
+
+        # Get the release version information
+        for line in listing:
+            if "release" in line.lower():
+                version = line.replace(',', '')
+                version = version.replace('_', '.')
+                self.date = version.split()[1]
+
+        print(self.date, date)
+        if self.date == date:
             for entry in entries:
                 self.all_entries.append(entry)
             exitParse = True
@@ -246,20 +257,18 @@ class GUI:
         listing = []
         self.ftp.retrlines('RETR README', listing.append)
 
-        # Get the release version information
-        for line in listing:
-            if "release" in line.lower():
-                version = line.replace(',', '')
-                version = version.replace('_', '.')
-                self.date = version.split()[1]
-
         # Try to load entry objects from pickle file unless first time running, then user needs to save defaults
         try:
             exitParse = self.loadAllEntries()
             if exitParse:
                 return None
         except FileNotFoundError:
-            pass
+            # Get the release version information
+            for line in listing:
+                if "release" in line.lower():
+                    version = line.replace(',', '')
+                    version = version.replace('_', '.')
+                    self.date = version.split()[1]
         
         # Find and parse the table
         header_index = listing.index('Proteome_ID Tax_ID  OSCODE     #(1)    #(2)    #(3)  Species Name')
@@ -565,6 +574,7 @@ class GUI:
 
         for entry in download_entries:
             # Move to the FTP site branch where files are located
+            print(entry.ftp_file_path)
             self.ftp.cwd(entry.ftp_file_path)
                 
             # Set local location for the download
@@ -573,11 +583,11 @@ class GUI:
                 os.chdir(os.path.join(uniprot_dir_path, entry.download_folder_name))
             except FileExistsError:
                 os.chdir(os.path.join(uniprot_dir_path, entry.download_folder_name))
-            except OSError:
-                print("OSError")
-                print('Download for this entry failed:')
-                entry.snoop()
-                continue
+##            except OSError:
+##                print("OSError")
+##                print('Download for this entry failed:')
+##                entry.snoop()
+##                continue
 
             # Download reference proteome database(s)
             for file in entry.ftp_download_list:
