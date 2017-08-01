@@ -26,6 +26,8 @@ Direct questions to:
 Technology & Research Collaborations, Oregon Health & Science University,
 Ph: 503-494-8200, FAX: 503-494-4729, Email: techmgmt@ohsu.edu.
 """
+
+"""TODO: Inspect importing behavior"""
 # Built-in module imports
 from tkinter import *
 from tkinter.ttk import *
@@ -573,7 +575,6 @@ class GUI:
 
         for entry in download_entries:
             # Move to the FTP site branch where files are located
-            print(entry.ftp_file_path)
             self.ftp.cwd(entry.ftp_file_path)
                 
             # Set local location for the download
@@ -582,11 +583,11 @@ class GUI:
                 os.chdir(os.path.join(uniprot_dir_path, entry.download_folder_name))
             except FileExistsError:
                 os.chdir(os.path.join(uniprot_dir_path, entry.download_folder_name))
-##            except OSError:
-##                print("OSError")
-##                print('Download for this entry failed:')
-##                entry.snoop()
-##                continue
+            except OSError:
+                print("OSError")
+                print('Download for this entry failed:')
+                entry.snoop()
+                continue
 
             # Download reference proteome database(s)
             for file in entry.ftp_download_list:
@@ -621,6 +622,7 @@ class GUI:
         # Get the list of protein fasta files
         temp_files = [x for x in entry.ftp_download_list if 'fasta' in x.lower()]
         fasta_files = []
+        combined_files = []
         for f in temp_files:
             if not self.banned_file(f):
                 fasta_files.append(f)
@@ -628,11 +630,13 @@ class GUI:
 
         fasta_file = fasta_files[0].replace('.fasta.gz', '')
         fasta_file = fasta_file + '_' + entry.short_name + '_canonical.fasta'
+        combined_files.append(fasta_file)
         fasta_obj_list = [open(os.path.join(uniprot_dir_path, fasta_file), 'w')]
         if len(fasta_files) == 2:
             fasta_file = fasta_files[1].replace('_additional.fasta.gz', '')
             fasta_file = fasta_file + '_' + entry.short_name + '_all.fasta'
             fasta_obj_list.append(open(os.path.join(uniprot_dir_path, fasta_file), 'w'))
+            combined_files.append(fasta_file)
 
         # Set up to read the fasta file entries and init counters
         print('proteome:', entry.proteome_ID, 'species:', entry.species_name)
@@ -663,14 +667,17 @@ class GUI:
             print('..database:', fasta)
             print('....tot_count:', p_count, 'sp count:', sp_count, 'tr count:', tr_count, 'isoform count:', iso_count)
 
-            # Add forward/reverse/contams
-            cwd = PureWindowsPath(os.getcwd())
-            contam_location = cwd.parents[1]  # Contams file is 2 directories up
-            self.addRevSequences(fasta, contam_location)
-
         # Close output file(s)
         for obj in fasta_obj_list:
             obj.close()
+
+        cwd = PureWindowsPath(os.getcwd())
+        contam_location = cwd.parents[1]  # Contams file is 2 directories up
+        os.chdir(cwd.parents[0])
+        for file in combined_files:
+            # Add forward/reverse/contams
+            self.addRevSequences(file, contam_location)
+            
 
 ##        # print stats
 ##        print('proteome:', entry.proteome_ID, 'species:', entry.species_name)
@@ -860,7 +867,7 @@ class GUI:
                 self.tree_right.heading(col, text=col.title(), 
                                        command=lambda col_=col: self.sort_text_column(self.tree_right, col_))
                 self.tree_right.column(col, minwidth=25, width=105, stretch=NO)
-        self.tree_left.heading(self.headers[-1], anchor=W)
+        self.tree_right.heading(self.headers[-1], anchor=W)
         self.tree_right.column(self.headers[-1], width=650, stretch=YES) # Assumes species names are last
         
         rightScrollX = Scrollbar(self.tree_right, orient=HORIZONTAL)
