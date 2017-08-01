@@ -190,7 +190,7 @@ class ReadMeEntry:
 # Build GUI
 class GUI:
     """Main GUI class for application."""
-    def __init__(self, URL, ref_prot_path, kingdom_paths, headers, banned_list):
+    def __init__(self, URL, ref_prot_path, kingdom_paths, headers, banned_list, script_path):
         """Create object and set some state attributes."""
         self.url = URL                          # Url of UniProt FTP site
         self.ftp = None                         # FTP object (set in login method)
@@ -202,7 +202,7 @@ class GUI:
         self.date = ""                          # This should be a UniProt version (i.e. 2017.07 for July release)        
         self.headers = headers                  # Needed for columns in tables
         self.proteome_IDs = []                  # List of unique proteome IDs
-        self.import_root = os.getcwd()          # Path location of defaults.pickle
+        self.import_root = script_path          # Path location of script
         self.data = None                        # Data from pickle file
         self.quit_save_state = "not triggered"  # Specifically refers to event when user wants to save database after quitting program
                 
@@ -369,9 +369,9 @@ class GUI:
     def reset_filters(self):
         """Resets filters to defaults."""
         self.checkboxes.check_all()
+        self.reverse_contams.uncheck_all()
         self.searchSpecies.delete(0, END)
         self.searchTax.delete(0, END)
-        self.rb_var.set(2)
         
     def sort_text_column(self, tv, col, reverse=False):
         l = [(tv.set(k, col), k) for k in tv.get_children('')]
@@ -479,7 +479,6 @@ class GUI:
             if initial:
                 # Load in entries from databases
                 databases = self.data["Databases"]
-                print("Initial Import: ", databases)
                 # Save cwd path for save_to_defaults()
                 self.update_status_bar("defaults_UniProt.pickle imported.")
             else:
@@ -520,19 +519,23 @@ class GUI:
         """Gets selection value from radiobuttons and then passes those values to imported fasta_reverse function.
         More documentation on how fasta_reverse works can be found in the reverse_fasta.py file.
         """
-        rb_values = self.rb_var.get()
+        reverse_values = list(self.reverse_contams.get_state())
         # Initially set everything to false
         forward = False
         reverse = False
         both = False
-        if rb_values == 0:
-            forward = True
-        elif rb_values == 1:
-            reverse = True
-        elif rb_values == 2:
+        decoy = reverse_values[0]
+        contams = reverse_values[1]
+        
+        if decoy == 1 and contams == 1:
             both = True
+        elif decoy == 1 and contams == 0:
+            reverse = True
+            contam_location = os.path.join(contam_location, "block")  # Prevent script from finding contams file
+        elif decoy ==0 and contams == 1:
+            forward = True
         else:
-            print("Error occurred in determining radiobutton values!")
+            print("Error occurred in determining checkbox values or no selection made!")
         add_rev.fasta_reverse(fasta_file, forward, reverse, both, contam_location)
             
     def download_databases(self):
@@ -671,11 +674,11 @@ class GUI:
             obj.close()
 
         # chdir into correct folder and make sure all file paths are set up correctly
-        cwd = PureWindowsPath(os.getcwd())
-        contam_location = cwd.parents[1]  # Contams file is 2 directories up
-        os.chdir(cwd.parents[0])
+        contam_location = self.import_root
+        uniprot_dir_name = r"UniProt_{}".format(self.date)
+        os.chdir(os.path.join(self.import_root, uniprot_dir_name))
+        # Add forward/reverse/contams
         for file in combined_files:
-            # Add forward/reverse/contams
             self.addRevSequences(file, contam_location)
             
 
@@ -770,17 +773,11 @@ class GUI:
         self.searchTax = Entry(tax_frame)
         self.searchTax.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=5)
 
-        # Radiobuttons for contams and/or decoy databases
-        self.rb_var = IntVar()
-        rbutton_frame = LabelFrame(optionFrame, text="Additional Database Types")
-        rbutton_frame.pack(fill=X, padx=5, pady=5)
-        forward_rb = Radiobutton(rbutton_frame, text="Forward Sequences Only", variable=self.rb_var, value=0)
-        rev_rb = Radiobutton(rbutton_frame, text="Reverse Sequences Only", variable=self.rb_var, value=1)
-        for_rev_rb = Radiobutton(rbutton_frame, text="Forward and Reverse Sequences", variable=self.rb_var, value=2)
-        forward_rb.pack(padx=5, pady=5, anchor=W)
-        rev_rb.pack(padx=5, pady=5, anchor=W)
-        for_rev_rb.pack(padx=5, pady=5, anchor=W)
-        self.rb_var.set(2)  # Set BOTH to default
+        # Checkboxes for contams and/or decoy databases
+        addSeqFrame = LabelFrame(optionFrame, text="Additional Database Types")
+        addSeqFrame.pack(fill=X, padx=5, pady=5)
+        self.reverse_contams = Checkboxes(addSeqFrame, ["Decoy Database(s)", "Contaminants"])
+        self.reverse_contams.pack(side = LEFT, fill=X, padx=5, pady=5)
 
         ## Show filtered list button and reset filters button
         filter_button = Button(searchWindowFrame, text="Show Filtered List", command=self.get_filtered_proteome_list)
@@ -907,8 +904,9 @@ if __name__ == '__main__':
     KINGDOM_PATHS = ('Archaea', 'Bacteria', 'Eukaryota', 'Viruses')
     HEADERS = ["TAX ID", "CANONICAL ENTRIES", "ADDITIONAL ENTRIES", "KINGDOM", "SPECIES NAME"]
     BANNED = ["DNA", "gene2acc", "idmapping"]
+    SCRIPT_PATH = script_location = os.path.dirname(os.path.realpath(__file__))
     
-    gui = GUI(URL, REF_PROT_PATH, KINGDOM_PATHS, HEADERS, BANNED)
+    gui = GUI(URL, REF_PROT_PATH, KINGDOM_PATHS, HEADERS, BANNED, SCRIPT_PATH)
     gui.create_gui()
 
 # End
