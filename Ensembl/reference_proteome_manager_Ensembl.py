@@ -1,5 +1,15 @@
 """
 Delan Huang, 2017-07-12
+TODO:
+ - Import and Saving defaults
+ - Get Date
+ - Error checking for when species isn't in current_fasta folder
+ - Fix TaxID Searching
+ - Reverse/Contams support
+ - Full general error checking
+ - Status bar updates
+ - Clean up GUI
+ - Clean up excess/old code
 """
 # Built-in module imports
 from tkinter import *
@@ -358,7 +368,6 @@ class GUI:
 
         # Change ftp directory for each species
         for entry in download_entries:
-            print(entry.getFTPFile())
             self.ftp.cwd(entry.getFTPFile())
 
             # Create a folder for each species
@@ -374,14 +383,16 @@ class GUI:
             
             # Download each selected entry's fasta file
             ## TODO: file names are really weird
-            for file in listing:
-                print(file)
+            for line in listing:
+                line = line.strip() # Want last item, so strip EOL
+                fname = line.split()[-1] # Get the file name
+
                 # Skip any files that we do not want to download
-                if self.banned_file(file):
+                if self.banned_file(fname):
                     continue
-                self.status_bar.config(text="Downloading {} file".format(file))
-                self.ftp.retrbinary('RETR {}'.format(file), open('{}'.format(file), 'wb').write)
-                print("{} is done downloading".format(file))
+                self.status_bar.config(text="Downloading {} file".format(fname))
+                self.ftp.retrbinary('RETR {}'.format(fname), open('{}'.format(fname), 'wb').write)
+                print("{} is done downloading".format(fname))
 
         messagebox.showinfo("All Downloads Completed!", "Downloads Finished!")
         
