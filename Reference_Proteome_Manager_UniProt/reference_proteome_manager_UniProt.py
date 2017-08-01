@@ -243,7 +243,6 @@ class GUI:
                 version = version.replace('_', '.')
                 self.date = version.split()[1]
 
-        print(self.date, date)
         if self.date == date:
             for entry in entries:
                 self.all_entries.append(entry)

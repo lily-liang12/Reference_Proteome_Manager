@@ -162,7 +162,8 @@ class GUI:
                                                        animal_obj.getTaxID()))
             
             download_latin_name = latin_name.replace("-", "_").lower()
-            download_path = os.path.join(self.url, self.ref_prot_path, download_latin_name, "pep", "")
+            # download_path = os.path.join(self.url, self.ref_prot_path, download_latin_name, "pep", "")
+            download_path = r"{}/{}/pep/".format(self.ref_prot_path, download_latin_name)
             animal_obj.setFTPFile(download_path)
             self.animal_list.append(animal_obj)
 
@@ -364,7 +365,7 @@ class GUI:
             try:
                 os.mkdir(os.path.join(ensembl_dir_path, entry.getFolderName()))
                 os.chdir(os.path.join(ensembl_dir_path, entry.getFolderName()))
-            except fileExistsError:
+            except FileExistsError:
                 os.chdir(os.path.join(ensembl_dir_path, entry.getFolderName()))
                 
             # Create a list of all files in each species folder
@@ -372,12 +373,13 @@ class GUI:
             self.ftp.retrlines('LIST', listing.append)
             
             # Download each selected entry's fasta file
+            ## TODO: file names are really weird
             for file in listing:
                 print(file)
                 # Skip any files that we do not want to download
                 if self.banned_file(file):
                     continue
-                self.update_status_bar("Downloading {} file".format(file))
+                self.status_bar.config(text="Downloading {} file".format(file))
                 self.ftp.retrbinary('RETR {}'.format(file), open('{}'.format(file), 'wb').write)
                 print("{} is done downloading".format(file))
 
