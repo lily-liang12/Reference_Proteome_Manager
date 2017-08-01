@@ -26,8 +26,6 @@ Direct questions to:
 Technology & Research Collaborations, Oregon Health & Science University,
 Ph: 503-494-8200, FAX: 503-494-4729, Email: techmgmt@ohsu.edu.
 """
-
-"""TODO: Inspect importing behavior"""
 # Built-in module imports
 from tkinter import *
 from tkinter.ttk import *
@@ -481,6 +479,7 @@ class GUI:
             if initial:
                 # Load in entries from databases
                 databases = self.data["Databases"]
+                print("Initial Import: ", databases)
                 # Save cwd path for save_to_defaults()
                 self.update_status_bar("defaults_UniProt.pickle imported.")
             else:
@@ -690,6 +689,7 @@ class GUI:
 
         # Get data from current defaults file
         try:
+            os.chdir(self.import_root)
             self.data = self.unpickle_entries()
         except FileNotFoundError:
             # print("First time defaults file has been created.")
