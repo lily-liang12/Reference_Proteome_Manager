@@ -203,6 +203,7 @@ class GUI:
         self.headers = headers                  # Needed for columns in tables
         self.proteome_IDs = []                  # List of unique proteome IDs
         self.import_root = script_path          # Path location of script
+        self.abs_dl_path = ""                   # Absolute path of user selected download directory
         self.data = None                        # Data from pickle file
         self.quit_save_state = "not triggered"  # Specifically refers to event when user wants to save database after quitting program
                 
@@ -549,14 +550,14 @@ class GUI:
             
         # Get parent folder location for database download
         db_default = os.getcwd()
-        abs_path = filedialog.askdirectory(parent=self.root, initialdir=db_default,
+        self.abs_dl_path = filedialog.askdirectory(parent=self.root, initialdir=db_default,
                                            title='Select container for UniProt downloads')
-        if not abs_path:
+        if not self.abs_dl_path:
             return None
 
         # Make a separate folder to contain all files
         uniprot_dir_name = r"UniProt_{}".format(self.date)
-        uniprot_dir_path = os.path.join(abs_path, uniprot_dir_name)
+        uniprot_dir_path = os.path.join(self.abs_dl_path, uniprot_dir_name)
         try:
             os.mkdir(uniprot_dir_path)
         except FileExistsError:
@@ -676,9 +677,10 @@ class GUI:
         # chdir into correct folder and make sure all file paths are set up correctly
         contam_location = self.import_root
         uniprot_dir_name = r"UniProt_{}".format(self.date)
-        os.chdir(os.path.join(self.import_root, uniprot_dir_name))
+        os.chdir(os.path.join(self.abs_dl_path, uniprot_dir_name))
         # Add forward/reverse/contams
         for file in combined_files:
+            print(file)
             self.addRevSequences(file, contam_location)
             
 
