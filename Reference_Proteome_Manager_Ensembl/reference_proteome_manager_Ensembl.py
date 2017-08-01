@@ -162,7 +162,7 @@ class GUI:
                                                        animal_obj.getTaxID()))
             
             download_latin_name = latin_name.replace("-", "_").lower()
-            download_path = os.path.join(self.url, self.ref_prot_path, download_latin_name, "pep")
+            download_path = os.path.join(self.url, self.ref_prot_path, download_latin_name, "pep", "")
             animal_obj.setFTPFile(download_path)
             self.animal_list.append(animal_obj)
 
@@ -309,8 +309,6 @@ class GUI:
 
         remove_characters = r"[],\'"  
         for database in databases:
-            # make a new zombie list to parse kingdom from species name
-            database = self.normalizeString(database, remove_characters, False)
             common_name = database.split()[0]
             latin_name = database.split()[1]
             tax_id = database.split()[2]
@@ -348,13 +346,18 @@ class GUI:
 
         ## TODO: Create new program flow for Ensembl
         # Grab entries from right tree view
-        download_entries = [self.tree_right.item(entry) for entry in self.tree_right.get_children()]
-        set_download_entries = list(set(download_entries))
-        if len(download_entries) != len(set_download_entries):
+        download_taxid = [self.tree_right.item(entry)['values'][2] for entry in self.tree_right.get_children()]
+        set_download_taxid = list(set(download_taxid))
+        if len(download_taxid) != len(set_download_taxid):
             messagebox.showwarning("Duplicates found!", "Duplicate databases were selected and will be ignored!")
             
-        # Change ftp directory to current fasta files
-        for entry in set_download_entries:
+        # Create a list of selected animal objects from list of tax id's selected
+        download_entries = [entry for taxid in download_taxid for entry in self.animal_list
+                            if int(taxid) == int(entry.getTaxID())]
+
+        # Change ftp directory for each species
+        for entry in download_entries:
+            print(entry.getFTPFile())
             self.ftp.cwd(entry.getFTPFile())
 
             # Create a folder for each species
@@ -370,6 +373,7 @@ class GUI:
             
             # Download each selected entry's fasta file
             for file in listing:
+                print(file)
                 # Skip any files that we do not want to download
                 if self.banned_file(file):
                     continue
@@ -540,7 +544,7 @@ class GUI:
         self.login()
         self.createRawTable()
         self.parseRawTable()  # Create Entry objects
-        self.import_defaults(True)  # initial import of defaults
+        # self.import_defaults(True)  # initial import of defaults
         self.root.protocol("WM_DELETE_WINDOW", self.quit_gui)  # Override window close event
         self.root.mainloop()
 
