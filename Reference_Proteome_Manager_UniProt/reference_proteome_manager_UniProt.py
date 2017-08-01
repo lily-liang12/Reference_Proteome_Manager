@@ -190,7 +190,7 @@ class ReadMeEntry:
 # Build GUI
 class GUI:
     """Main GUI class for application."""
-    def __init__(self, URL, ref_prot_path, kingdom_paths, headers, banned_list):
+    def __init__(self, URL, ref_prot_path, kingdom_paths, headers, banned_list, script_path):
         """Create object and set some state attributes."""
         self.url = URL                          # Url of UniProt FTP site
         self.ftp = None                         # FTP object (set in login method)
@@ -202,7 +202,7 @@ class GUI:
         self.date = ""                          # This should be a UniProt version (i.e. 2017.07 for July release)        
         self.headers = headers                  # Needed for columns in tables
         self.proteome_IDs = []                  # List of unique proteome IDs
-        self.import_root = os.getcwd()          # Path location of defaults.pickle
+        self.import_root = script_path          # Path location of script
         self.data = None                        # Data from pickle file
         self.quit_save_state = "not triggered"  # Specifically refers to event when user wants to save database after quitting program
                 
@@ -671,9 +671,9 @@ class GUI:
             obj.close()
 
         # chdir into correct folder and make sure all file paths are set up correctly
-        cwd = PureWindowsPath(os.getcwd())
-        contam_location = cwd.parents[1]  # Contams file is 2 directories up
-        os.chdir(cwd.parents[0])
+        contam_location = self.import_root
+        uniprot_dir_name = r"UniProt_{}".format(self.date)
+        os.chdir(os.path.join(self.import_root, uniprot_dir_name))
         for file in combined_files:
             # Add forward/reverse/contams
             self.addRevSequences(file, contam_location)
@@ -907,8 +907,9 @@ if __name__ == '__main__':
     KINGDOM_PATHS = ('Archaea', 'Bacteria', 'Eukaryota', 'Viruses')
     HEADERS = ["TAX ID", "CANONICAL ENTRIES", "ADDITIONAL ENTRIES", "KINGDOM", "SPECIES NAME"]
     BANNED = ["DNA", "gene2acc", "idmapping"]
+    SCRIPT_PATH = script_location = os.path.dirname(os.path.realpath(__file__))
     
-    gui = GUI(URL, REF_PROT_PATH, KINGDOM_PATHS, HEADERS, BANNED)
+    gui = GUI(URL, REF_PROT_PATH, KINGDOM_PATHS, HEADERS, BANNED, SCRIPT_PATH)
     gui.create_gui()
 
 # End
