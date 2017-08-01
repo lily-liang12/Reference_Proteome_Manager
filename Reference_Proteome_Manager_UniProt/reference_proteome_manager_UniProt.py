@@ -671,6 +671,7 @@ class GUI:
         for obj in fasta_obj_list:
             obj.close()
 
+        # chdir into correct folder and make sure all file paths are set up correctly
         cwd = PureWindowsPath(os.getcwd())
         contam_location = cwd.parents[1]  # Contams file is 2 directories up
         os.chdir(cwd.parents[0])
