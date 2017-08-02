@@ -2,7 +2,7 @@
 Program to allow researchers to download and maintain protein databases from the UniProt database site for proteomics research.
 
 ## User Guide
-A [User Guide](User%20Guide.pptx) is included in this repo to help users. Please check that out for more detailed information on how to use the program.
+A [User Guide](Reference_Proteome_Manager/Reference_Proteome_Manager_UniProt/User_Guide_UniProt.pptx) is included in this repo to help users. Please check that out for more detailed information on how to use the program.
 
 ## Getting Started
 ### Prerequisites
