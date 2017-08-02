@@ -5,7 +5,6 @@ TODO:
  the path exists, and if it returns an error, remove it from animal_list)
  - Reverse/Contams support
  - Full general error checking
- - Status bar updates
  - Clean up GUI
  - Clean up excess/old code
 """
@@ -243,7 +242,7 @@ class GUI:
         for entry in sorted(entries):
             self.tree_left.insert('', 'end', values=entry)
 
-        self.status_bar.config(text=("List updated with %s entries" % len(self.selected_entries)))
+        self.update_status_bar(text=("List updated with %s entries" % len(self.selected_entries)))
         
     def reset_filters(self):
         """Resets filters to defaults."""
@@ -279,7 +278,7 @@ class GUI:
             selected_copy = self.tree_right.item(selected)  # creates a set of dicts
             self.tree_right.delete(selected)
             self.tree_left.insert('', 'end', values=selected_copy['values'])
-        self.status_bar.config(text="{} dropped".format(selected_copy['values'][0]))
+        self.update_status_bar(text="{} dropped".format(selected_copy['values'][0]))
 
     def move_to_right(self):
         selection = self.tree_left.selection()  
@@ -288,7 +287,7 @@ class GUI:
             selected_copy = self.tree_left.item(selected)
             self.tree_left.delete(selected)
             self.tree_right.insert('', 'end', values=selected_copy['values'])
-        self.status_bar.config(text="{} added".format(selected_copy['values'][0]))  # Species name should be first
+        self.update_status_bar(text="{} added".format(selected_copy['values'][0]))  # Species name should be first
 
     def pickle_entries(self, databases):
         text = {"Databases":databases, "Date":self.date, "Entries":self.animal_list}
