@@ -1,7 +1,6 @@
 """
 Delan Huang, 2017-07-12
 TODO:
- - Import and Saving defaults
  - Error checking for when species isn't in current_fasta folder (could solve by preemptively checking if
  the path exists, and if it returns an error, remove it from animal_list)
  - Reverse/Contams support
@@ -21,6 +20,7 @@ import datetime
 import re
 import copy
 import urllib.request
+import pickle
 from datetime import datetime
 
 # Imports dependent on other files
@@ -36,6 +36,7 @@ FTP_URL = 'ftp.ensembl.org'
 REF_PROT_PATH = '/pub/current_fasta'
 HEADERS = ["COMMON NAME", "LATIN NAME", "TAX ID", "ENSEMBL ASSEMBLY"]
 BANNED = ["README", "CHECKSUMS", "abinitio.fa.gz"]
+SCRIPT_LOCATION = os.path.dirname(os.path.realpath(__file__))
 
 # Get HTML page from Ensembl for parsing
 PARSE_URL = r'http://www.ensembl.org/info/about/species.html'
@@ -87,19 +88,22 @@ class AnimalEntry:
 # Build GUI
 class GUI:
     """Main GUI class for application."""
-    def __init__(self, url, ref_prot_path, text, headers, banned_list):
+    def __init__(self, url, ref_prot_path, text, headers, banned_list, script_location):
         """Create object and set some state attributes."""
-        self.url = url                      # Url of UniProt FTP site
-        self.ref_prot_path = ref_prot_path  # Location of databases
-        self.ftp = None                     # FTP object (set in login method)
-        self.text = text                    # HTML text of webpage
-        self.raw_table = []                 # HTML text of just animals table
-        self.selected_entries = []          # List of selected AnimalEntry objects
-        self.animal_list = []               # List of all AnimalEntry objects
-        self.banned_list = banned_list      # List of file identifiers to be omitted when downloading
-        self.date = ""                      # This should be the date uploaded(i.e. 2017.07 for July release)        
-        self.headers = headers              # Needed for columns in tables
-        self.proteome_IDs = []              # List of unique proteome IDs
+        self.url = url                          # Url of UniProt FTP site
+        self.ref_prot_path = ref_prot_path      # Location of databases
+        self.ftp = None                         # FTP object (set in login method)
+        self.text = text                        # HTML text of webpage
+        self.raw_table = []                     # HTML text of just animals table
+        self.selected_entries = []              # List of selected AnimalEntry objects
+        self.animal_list = []                   # List of all AnimalEntry objects
+        self.banned_list = banned_list          # List of file identifiers to be omitted when downloading
+        self.date = ""                          # This should be the date uploaded(i.e. 2017.07 for July release)        
+        self.headers = headers                  # Needed for columns in tables
+        self.proteome_IDs = []                  # List of unique proteome IDs
+        self.script_location = script_location # Script path location
+        self.data = None                        # Holds unpickled information
+        self.quit_save_state = ""               # Trigger for updating defaults file on quit status
         
         # List of characters that cannot be in folder names
         self.illegal_characters = r"[\\#%&{}/<>*?:]"
@@ -286,65 +290,125 @@ class GUI:
             self.tree_right.insert('', 'end', values=selected_copy['values'])
         self.status_bar.config(text="{} added".format(selected_copy['values'][0]))  # Species name should be first
 
+    def pickle_entries(self, databases):
+        text = {"Databases":databases, "Date":self.date, "Entries":self.animal_list}
+        try:
+            os.chdir(self.script_location)
+        except OSError:
+            print("OSError occurred during pickling. Cwd: {}".format(os.getcwd()))
+
+        with open('defaults_Ensembl.pickle', 'wb') as file:
+            pickle.dump(text, file)
+
+    def unpickle_entries(self):
+        with open('defaults_Ensembl.pickle', 'rb') as file:
+            return pickle.load(file)
+
     def save_to_defaults(self):
         answer = True
-        # Throw a warning to overwrite
-        if os.path.isfile("defaults_Ensembl.txt"):
-            answer = messagebox.askyesno("File Detected!",
-                                         "A defaults_Ensembl.txt file was already found. Would you like to overwrite?")
+        # Throw a warning to overwrite if user is trying to save to defaults
+        if self.quit_save_state == "not triggered":  # Check to make sure quit state wasn't triggered
+            if os.path.isfile("defaults_Ensembl.pickle"):
+                answer = messagebox.askyesno("File Detected!",
+                                             "A defaults.pickle file was already found. Would you like to overwrite?")
         if answer:
-            save_path = filedialog.askdirectory()
+            if self.script_location:
+                save_path = self.script_location
+            else:
+                save_path = filedialog.askdirectory()
+                self.script_location = save_path
             try:
                 os.chdir(save_path)
 
+                # Attempt to write data struct in byte form to defaults.pickle
                 items = self.tree_right.get_children()
-                databases = [self.tree_right.item(item)['values'] for item in items]               
+                databases = [self.tree_right.item(item)['values'] for item in items]
+                # Remove duplicates
+                db_set = set(tuple(x) for x in databases)
+                databases = [list(x) for x in db_set]
+                self.pickle_entries(databases)
+                # Re-import right tree
+                for row in self.tree_right.get_children():
+                    self.tree_right.delete(row)
+                self.data = self.unpickle_entries()
+                for database in self.data["Databases"]:
+                    self.tree_right.insert('', 'end', values=database)
 
-                with open("defaults_Ensembl.txt", "w") as defaults_txt:
-                    for database in databases:
-                        defaults_txt.write("{}\n".format(database))
-
-                self.status_bar.config(text="Databases saved to defaults_Ensembl.txt")
+                self.update_status_bar("Databases saved to defaults_Ensembl.pickle")
             except OSError:
-                messagebox.showwarning("Invalid Filename!", "Cannot save defaults_Ensembl.txt to selected folder!")
+                messagebox.showwarning("Invalid Filename!",
+                                       "Cannot save defaults_Ensembl.pickle to selected folder!")
                 return None
         else:
             return None
-
+        
     def import_defaults(self, initial=False):
         try:
             if initial:
-                with open("defaults_Ensembl.txt", "r") as defaults_txt:
-                    databases = defaults_txt.readlines()
-                self.status_bar.config(text="defaults_Ensembl.txt imported.")
+                self.data = self.unpickle_entries()
+                # Load in entries from databases
+                databases = self.data["Databases"]
+                # Save cwd path for save_to_defaults()
+                self.update_status_bar("defaults_Ensembl.pickle imported.")
             else:
-                import_root = filedialog.askopenfilename().rsplit("/", 1)[0] + "/"
-                os.chdir(import_root)
+                self.script_location = filedialog.askopenfilename().rsplit("/", 1)[0] + "/"  
+                os.chdir(self.script_location)
 
-                with open("defaults_Ensembl.txt", "r") as defaults_txt:
-                    databases = defaults_txt.readlines()
-                self.status_bar.config(text="defaults_Ensembl.txt imported.")
+                self.data = self.unpickle_entries()
+                databases = self.data["Databases"]
+                self.update_status_bar("defaults_Ensembl.pickle imported.")
         except FileNotFoundError:
-            self.status_bar.config(text="No defaults imported/defaults could not be found")
+            self.update_status_bar("No defaults imported/defaults could not be found")
             return None
         except OSError:
             messagebox.showwarning("Invalid File!", "Invalid file selection!")
+            return None
+        except TypeError:
+            self.update_status_bar("No defaults imported/defaults could not be found")
+            # print("If self.data is None, self.data hasn't been initialized yet: ", type(self.data))
+            return None
 
         
         # Clear selected databases before importing
         for row in self.tree_right.get_children():
                 self.tree_right.delete(row)
-
-        remove_characters = r"[],\'"  
+    
         for database in databases:
-            common_name = database.split()[0]
-            latin_name = database.split()[1]
-            tax_id = database.split()[2]
-            ens_assembly = database.split()[3]
-            # maybe look into parsing the database entry in defaults using a regex (to preserve internal brackets)
+            # Make a new zombie list to parse kingdom from species name
+            common_name = database[0]
+            latin_name = database[1]
+            tax_id = database[2]
+            e_a = database[3]
 
-            clean_database = [common_name, latin_name, tax_id, ens_assembly]
+            clean_database = [common_name, latin_name, tax_id, e_a]
             self.tree_right.insert('', 'end', values=clean_database)
+
+    def update_defaults(self):
+        """If the entries in right tree do not match original defaults file, ask user to save updated list"""
+        tree_items = [self.tree_right.item(entry)['values'] for entry in self.tree_right.get_children()]
+
+        # Get data from current defaults file
+        try:
+            os.chdir(self.script_location)
+            self.data = self.unpickle_entries()
+        except FileNotFoundError:
+            # print("First time defaults file has been created.")
+            self.pickle_entries([])
+
+        # Match current selected database to defaults
+        try:
+            if tree_items != self.data["Databases"]:
+                answer = messagebox.askyesno("Unsaved Progress",
+                                             "Database selections are different than defaults! Would you like to save?")
+                if answer:
+                    self.quit_save_state = "triggered"
+                    self.save_to_defaults()
+        except TypeError:  # Triggers when self.data hasn't been initialized yet
+            answer = messagebox.askyesno("Unsaved Progress",
+                                         "Would you like to save currently selected databases to defaults?")
+            if answer:
+                self.quit_save_state = "triggered"
+                self.save_to_defaults()
             
     """TODO: This function """        
     def download_databases(self):
@@ -407,13 +471,12 @@ class GUI:
                 # Skip any files that we do not want to download
                 if self.banned_file(fname):
                     continue
-                self.status_bar.config(text="Downloading {} file".format(fname))
+                self.update_status_bar(text="Downloading {} file".format(fname))
                 self.ftp.retrbinary('RETR {}'.format(fname), open('{}'.format(fname), 'wb').write)
                 print("{} is done downloading".format(fname))
 
         messagebox.showinfo("All Downloads Completed!", "Downloads Finished!")
         
-
     def banned_file(self, fname):
         """False if fname in banned list."""
         skip = False
@@ -421,10 +484,17 @@ class GUI:
             if ban.lower() in fname.lower():
                 skip = True
         return skip
-           
+    
+    def update_status_bar(self, _text):
+        """Updates status bar with new text"""
+        self.status_bar.config(text=_text)
+        self.status_bar.update_idletasks()
+        self.root.after(100)
+        
     def quit_gui(self):
         """Quits the GUI application."""
         self.logout()   # close the FTP connection
+        self.update_defaults()
         self.root.withdraw()
         self.root.update_idletasks()
         self.root.destroy()
@@ -575,10 +645,10 @@ class GUI:
         self.login()
         self.createRawTable()
         self.parseRawTable()  # Create Entry objects
-        # self.import_defaults(True)  # initial import of defaults
+        self.import_defaults(True)  # initial import of defaults
         self.root.protocol("WM_DELETE_WINDOW", self.quit_gui)  # Override window close event
         self.root.mainloop()
 
 # Main Function
-gui = GUI(FTP_URL, REF_PROT_PATH, TEXT, HEADERS, BANNED)
+gui = GUI(FTP_URL, REF_PROT_PATH, TEXT, HEADERS, BANNED, SCRIPT_LOCATION)
 gui.create_gui()

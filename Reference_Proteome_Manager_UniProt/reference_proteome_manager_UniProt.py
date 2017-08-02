@@ -906,7 +906,7 @@ if __name__ == '__main__':
     KINGDOM_PATHS = ('Archaea', 'Bacteria', 'Eukaryota', 'Viruses')
     HEADERS = ["TAX ID", "CANONICAL ENTRIES", "ADDITIONAL ENTRIES", "KINGDOM", "SPECIES NAME"]
     BANNED = ["DNA", "gene2acc", "idmapping"]
-    SCRIPT_PATH = script_location = os.path.dirname(os.path.realpath(__file__))
+    SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
     
     gui = GUI(URL, REF_PROT_PATH, KINGDOM_PATHS, HEADERS, BANNED, SCRIPT_PATH)
     gui.create_gui()
