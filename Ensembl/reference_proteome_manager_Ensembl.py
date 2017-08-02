@@ -3,7 +3,8 @@ Delan Huang, 2017-07-12
 TODO:
  - Import and Saving defaults
  - Get Date
- - Error checking for when species isn't in current_fasta folder
+ - Error checking for when species isn't in current_fasta folder (could solve by preemptively checking if
+ the path exists, and if it returns an error, remove it from animal_list)
  - Fix TaxID Searching
  - Reverse/Contams support
  - Full general error checking
@@ -22,6 +23,7 @@ import datetime
 import re
 import copy
 import urllib.request
+from datetime import datetime
 
 # Imports dependent on other files
 # This python file only uses built-in modules, no external downloads required
@@ -89,7 +91,7 @@ class GUI:
     """Main GUI class for application."""
     def __init__(self, url, ref_prot_path, text, headers, banned_list):
         """Create object and set some state attributes."""
-        self.url = url                      # url of UniProt FTP site
+        self.url = url                      # Url of UniProt FTP site
         self.ref_prot_path = ref_prot_path  # Location of databases
         self.ftp = None                     # FTP object (set in login method)
         self.text = text                    # HTML text of webpage
@@ -97,7 +99,7 @@ class GUI:
         self.selected_entries = []          # List of selected AnimalEntry objects
         self.animal_list = []               # List of all AnimalEntry objects
         self.banned_list = banned_list      # List of file identifiers to be omitted when downloading
-        self.date = ""                      # This should be a UniProt version (i.e. 2017.07 for July release)        
+        self.date = ""                      # This should be the date uploaded(i.e. 2017.07 for July release)        
         self.headers = headers              # Needed for columns in tables
         self.proteome_IDs = []              # List of unique proteome IDs
         
@@ -150,7 +152,7 @@ class GUI:
             animal = matched_groups[i:i+9]
             parsed.append(animal)
             
-        # We want to remove the empty space produced by alternative path
+        # We want to remove the empty space produced by alternative path in regex
         for animal in parsed:
             for i in range(len(animal)):
                 for path in animal[i]:
@@ -172,12 +174,30 @@ class GUI:
                                                        animal_obj.getTaxID()))
             
             download_latin_name = latin_name.replace("-", "_").lower()
-            # download_path = os.path.join(self.url, self.ref_prot_path, download_latin_name, "pep", "")
             download_path = r"{}/{}/pep/".format(self.ref_prot_path, download_latin_name)
             animal_obj.setFTPFile(download_path)
             self.animal_list.append(animal_obj)
+        self.getDate()
 
-
+    def getDate(self):
+        self.login()
+        self.ftp.cwd(self.animal_list[1].getFTPFile())  # Just hope that this animal actually exists in ftp database
+        
+        # Create a list of all files in each species folder
+        listing = []
+        self.ftp.retrlines('LIST', listing.append)
+        
+        # Download each selected entry's fasta file
+        line = listing[0]
+        line = line.strip() # Want last item, so strip EOL
+        fname = line.split()[-1]
+        modifiedTime = self.ftp.sendcmd('MDTM {}'.format(fname))
+        modifiedTime = datetime.strptime(modifiedTime[4:], "%Y%m%d%H%M%S").strftime("%d %B %Y %H:%M:%S")
+        # Prints something like "07 May 2017 22:22:07"
+        month = modifiedTime.split()[1]
+        year = modifiedTime.split()[2]
+        self.date = "{}.{}".format(month, year)
+        
     # TODO: Species name search is working, but taxID is not
     def filterEntries(self):
         """ FIX DESC: Checks values search fields, filters all proteome IDs associated with
@@ -258,7 +278,7 @@ class GUI:
             selected_copy = self.tree_right.item(selected)  # creates a set of dicts
             self.tree_right.delete(selected)
             self.tree_left.insert('', 'end', values=selected_copy['values'])
-        self.status_bar.config(text="{} dropped".format(selected_copy['values'][-1]))
+        self.status_bar.config(text="{} dropped".format(selected_copy['values'][0]))
 
     def move_to_right(self):
         selection = self.tree_left.selection()  
@@ -267,7 +287,7 @@ class GUI:
             selected_copy = self.tree_left.item(selected)
             self.tree_left.delete(selected)
             self.tree_right.insert('', 'end', values=selected_copy['values'])
-        self.status_bar.config(text="{} added".format(selected_copy['values'][-1]))  # Species name should be last
+        self.status_bar.config(text="{} added".format(selected_copy['values'][0]))  # Species name should be first
 
     def save_to_defaults(self):
         answer = True
@@ -382,11 +402,11 @@ class GUI:
             self.ftp.retrlines('LIST', listing.append)
             
             # Download each selected entry's fasta file
-            ## TODO: file names are really weird
             for line in listing:
                 line = line.strip() # Want last item, so strip EOL
+                # self.date = line.split()[-4]  # Gives the month uploaded
                 fname = line.split()[-1] # Get the file name
-
+                
                 # Skip any files that we do not want to download
                 if self.banned_file(fname):
                     continue
