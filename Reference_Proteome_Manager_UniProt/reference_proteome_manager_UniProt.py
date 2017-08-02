@@ -806,7 +806,7 @@ class GUI:
             else:
                 self.tree_left.heading(col, text=col.title(),
                                        command=lambda col_=col: self.sort_text_column(self.tree_left, col_))
-                self.tree_left.column(col, minwidth=25, width=105, stretch=NO)
+                self.tree_left.column(col, minwidth=25, width=60, stretch=NO)
         self.tree_left.heading(self.headers[-1], anchor=W)
         self.tree_left.column(self.headers[-1], minwidth=25, width=650, stretch=YES)  # assumes species name is always last
 
@@ -865,7 +865,7 @@ class GUI:
             else:
                 self.tree_right.heading(col, text=col.title(), 
                                        command=lambda col_=col: self.sort_text_column(self.tree_right, col_))
-                self.tree_right.column(col, minwidth=25, width=105, stretch=NO)
+                self.tree_right.column(col, minwidth=25, width=60, stretch=NO)
         self.tree_right.heading(self.headers[-1], anchor=W)
         self.tree_right.column(self.headers[-1], width=650, stretch=YES) # Assumes species names are last
         
