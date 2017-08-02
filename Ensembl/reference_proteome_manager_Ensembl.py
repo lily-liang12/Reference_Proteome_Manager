@@ -4,7 +4,6 @@ TODO:
  - Error checking for when species isn't in current_fasta folder (could solve by preemptively checking if
  the path exists, and if it returns an error, remove it from animal_list)
  - Reverse/Contams support
- - Full general error checking
  - Clean up GUI
  - Clean up excess/old code
 """
@@ -100,9 +99,9 @@ class GUI:
         self.date = ""                          # This should be the date uploaded(i.e. 2017.07 for July release)        
         self.headers = headers                  # Needed for columns in tables
         self.proteome_IDs = []                  # List of unique proteome IDs
-        self.script_location = script_location # Script path location
+        self.script_location = script_location  # Script path location
         self.data = None                        # Holds unpickled information
-        self.quit_save_state = ""               # Trigger for updating defaults file on quit status
+        self.quit_save_state = "not triggered"  # Trigger for updating defaults file on quit status
         
         # List of characters that cannot be in folder names
         self.illegal_characters = r"[\\#%&{}/<>*?:]"
@@ -144,41 +143,58 @@ class GUI:
         self.raw_table = TEXT[start_ind:end_ind]
 
     def parseRawTable(self):
-        # Parse header into animal list
-        # Need an alternative path for missing entries where gene build method is "import"
-        parser = re.compile(r'<td\b[^>]*>(.*?)</td>|</span\b[^>]*>(.*?)</span>')
-        matched_groups = parser.findall(self.raw_table)
-        parsed = []
-        for i in range(0, len(matched_groups), 9):  # Split 1D list into 2D so that each animal has 9 attributes
-            animal = matched_groups[i:i+9]
-            parsed.append(animal)
-            
-        # We want to remove the empty space produced by alternative path in regex
-        for animal in parsed:
-            for i in range(len(animal)):
-                for path in animal[i]:
-                    if path:
-                        animal[i] = path
-            common_name = self.cleanCommonName(animal[0])
-            latin_name = self.cleanLatinName(animal[1])
-            tax_id = animal[2]
-            if not str(tax_id).isdigit():  # In case tax_id is something other than a number
-                tax_id = "000"
+        try:
+            # Load Entries if already saved from defaults and make sure its up to date
+            self.animal_list = self.data['Entries']
+            self.getDate()
+            if self.date == self.data['Date']:
+                return None
+        except (IndexError, TypeError) as err:
+            print("Error: ", err)
+            # Parse header into animal list
+            # Need an alternative path for missing entries where gene build method is "import"
+            parser = re.compile(r'<td\b[^>]*>(.*?)</td>|</span\b[^>]*>(.*?)</span>')
+            matched_groups = parser.findall(self.raw_table)
+            parsed = []
+            for i in range(0, len(matched_groups), 9):  # Split 1D list into 2D so that each animal has 9 attributes
+                animal = matched_groups[i:i+9]
+                parsed.append(animal)
+                
+            # We want to remove the empty space produced by alternative path in regex
+            for animal in parsed:
+                for i in range(len(animal)):
+                    for path in animal[i]:
+                        if path:
+                            animal[i] = path
+                common_name = self.cleanCommonName(animal[0])
+                latin_name = self.cleanLatinName(animal[1])
+                tax_id = animal[2]
+                if not str(tax_id).isdigit():  # In case tax_id is something other than a number
+                    tax_id = "000"
 
-            # Create main animal entry
-            animal_obj = AnimalEntry(common_name, latin_name, tax_id, animal[3], animal[4],
-                                     animal[5], animal[6], animal[7], animal[8])
+                # Create main animal entry
+                animal_obj = AnimalEntry(common_name, latin_name, tax_id, animal[3], animal[4],
+                                         animal[5], animal[6], animal[7], animal[8])
 
-            # Set animal object's folder name and ftp download path
-            animal_obj.setFolderName("{}_{}_{}".format(animal_obj.getCommonName(),
-                                                       animal_obj.getLatinName(),
-                                                       animal_obj.getTaxID()))
-            
-            download_latin_name = latin_name.replace("-", "_").lower()
-            download_path = r"{}/{}/pep/".format(self.ref_prot_path, download_latin_name)
-            animal_obj.setFTPFile(download_path)
-            self.animal_list.append(animal_obj)
-        self.getDate()
+                # Set animal object's folder name and ftp download path
+                animal_obj.setFolderName("{}_{}_{}".format(animal_obj.getCommonName(),
+                                                           animal_obj.getLatinName(),
+                                                           animal_obj.getTaxID()))
+                
+                download_latin_name = latin_name.replace("-", "_").lower()
+                download_path = r"{}/{}/pep/".format(self.ref_prot_path, download_latin_name)
+                animal_obj.setFTPFile(download_path)
+                self.animal_list.append(animal_obj)
+            self.removeInvalidAnimals()
+            self.getDate()
+
+    def removeInvalidAnimals(self):
+        self.login()
+        for animal in self.animal_list:
+            try:
+                self.ftp.cwd(animal.getFTPFile())
+            except ftplib.error_perm:
+                self.animal_list.remove(animal)
 
     def getDate(self):
         self.login()
@@ -242,7 +258,7 @@ class GUI:
         for entry in sorted(entries):
             self.tree_left.insert('', 'end', values=entry)
 
-        self.update_status_bar(text=("List updated with %s entries" % len(self.selected_entries)))
+        self.update_status_bar("List updated with %s entries" % len(self.selected_entries))
         
     def reset_filters(self):
         """Resets filters to defaults."""
@@ -278,7 +294,7 @@ class GUI:
             selected_copy = self.tree_right.item(selected)  # creates a set of dicts
             self.tree_right.delete(selected)
             self.tree_left.insert('', 'end', values=selected_copy['values'])
-        self.update_status_bar(text="{} dropped".format(selected_copy['values'][0]))
+        self.update_status_bar("{} dropped".format(selected_copy['values'][0]))
 
     def move_to_right(self):
         selection = self.tree_left.selection()  
@@ -287,7 +303,7 @@ class GUI:
             selected_copy = self.tree_left.item(selected)
             self.tree_left.delete(selected)
             self.tree_right.insert('', 'end', values=selected_copy['values'])
-        self.update_status_bar(text="{} added".format(selected_copy['values'][0]))  # Species name should be first
+        self.update_status_bar("{} added".format(selected_copy['values'][0]))  # Species name should be first
 
     def pickle_entries(self, databases):
         text = {"Databases":databases, "Date":self.date, "Entries":self.animal_list}
@@ -470,7 +486,7 @@ class GUI:
                 # Skip any files that we do not want to download
                 if self.banned_file(fname):
                     continue
-                self.update_status_bar(text="Downloading {} file".format(fname))
+                self.update_status_bar("Downloading {} file".format(fname))
                 self.ftp.retrbinary('RETR {}'.format(fname), open('{}'.format(fname), 'wb').write)
                 print("{} is done downloading".format(fname))
 
@@ -642,9 +658,9 @@ class GUI:
         
         # open the FTP connection
         self.login()
+        self.import_defaults(True)  # initial import of defaults
         self.createRawTable()
         self.parseRawTable()  # Create Entry objects
-        self.import_defaults(True)  # initial import of defaults
         self.root.protocol("WM_DELETE_WINDOW", self.quit_gui)  # Override window close event
         self.root.mainloop()
 
