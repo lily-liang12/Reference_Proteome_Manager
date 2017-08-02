@@ -2,10 +2,8 @@
 Delan Huang, 2017-07-12
 TODO:
  - Import and Saving defaults
- - Get Date
  - Error checking for when species isn't in current_fasta folder (could solve by preemptively checking if
  the path exists, and if it returns an error, remove it from animal_list)
- - Fix TaxID Searching
  - Reverse/Contams support
  - Full general error checking
  - Status bar updates
@@ -132,7 +130,7 @@ class GUI:
 
     def createRawTable(self):
         # Setup html file to find required information 
-        # find start and end of h3 header block
+        # Find start and end of h3 header block
         TEXT = self.text
         if "<td" in TEXT:
             start_ind = TEXT.index("<td")
@@ -189,7 +187,7 @@ class GUI:
         
         # Download each selected entry's fasta file
         line = listing[0]
-        line = line.strip() # Want last item, so strip EOL
+        line = line.strip()  # Want last item, so strip EOL
         fname = line.split()[-1]
         modifiedTime = self.ftp.sendcmd('MDTM {}'.format(fname))
         modifiedTime = datetime.strptime(modifiedTime[4:], "%Y%m%d%H%M%S").strftime("%d %B %Y %H:%M:%S")
@@ -205,13 +203,13 @@ class GUI:
         """
         # get the species and taxonomy substring filters
         species_entry = self.searchSpecies.get().lower()
-        tax_entry = self.searchTax.get()        
+        tax_entry = self.searchTax.get()
 
         # filter on taxonomy number substring
         self.selected_entries = [entry for entry in self.animal_list if tax_entry in entry.getTaxID()]
 
         # filter on species name substring
-        self.selected_entries = [entry for entry in self.animal_list
+        self.selected_entries = [entry for entry in self.selected_entries
                                  if species_entry in entry.getCommonName().lower()
                                  or species_entry in entry.getLatinName().lower()]
         
@@ -219,13 +217,12 @@ class GUI:
         """ Calls relevant methods to create filtered lists, then finds intersection of the lists, 
         and outputs relevant info to user
         """
-        self.filterEntries()        
+        self.filterEntries()
 
         if len(self.selected_entries) == 0:
             # Ask if user wants all entries shown if no filters are selected
             answer = messagebox.askyesno("Are you sure?",
-                                         "No filters were selected and/or no databases found. \
-                                         Would you like to show all databases?")
+                                         "No databases found. Would you like to show all databases?")
             if answer:
                 self.selected_entries = self.animal_list
             else:
@@ -508,24 +505,33 @@ class GUI:
         
         
         ## Menu Buttons
-        buttonFrame = Frame(entryFrame)
+        button_width = 19
+        buttonFrame = LabelFrame(entryFrame, text="Menu Buttons")
         buttonFrame.pack(side=LEFT)
 
         addButton = Button(buttonFrame, text="Add Proteome(s)", command=self.move_to_right)
         addButton.pack()
-        addButton.config(width=15)
+        addButton.config(width=button_width)
 
         removeButton = Button(buttonFrame, text="Drop Proteome(s)", command=self.move_to_left)
         removeButton.pack()
-        removeButton.config(width=15)
+        removeButton.config(width=button_width)
         
         saveButton = Button(buttonFrame, text="Save Defaults", command=self.save_to_defaults)  
         saveButton.pack()
-        saveButton.config(width=15)
+        saveButton.config(width=button_width)
 
         importButton = Button(buttonFrame, text="Import Defaults", command=self.import_defaults)
         importButton.pack()
-        importButton.config(width=15)
+        importButton.config(width=button_width)
+        
+        downloadButton = Button(buttonFrame, text="Download Databases", command=self.download_databases)
+        downloadButton.pack()
+        downloadButton.config(width=button_width)
+
+        quitButton = Button(buttonFrame, text="Quit", command=self.quit_gui)
+        quitButton.pack()
+        quitButton.config(width=button_width)
         
 
         ## Right Window
@@ -558,14 +564,6 @@ class GUI:
         # Miscellaneous Frame
         miscFrame = Frame(self.root)
         miscFrame.pack(side=BOTTOM, fill=X, padx=5, pady=5)
-
-        ## Download button
-        downloadButton = Button(miscFrame, text="Download Databases", command=self.download_databases)
-        downloadButton.pack(padx=5, pady=5)
-
-        # Quit button
-        quitButton = Button(miscFrame, text="Quit", command=self.quit_gui)
-        quitButton.pack(padx=5, pady=5)
 
         # Status Bar
         status_frame = LabelFrame(miscFrame, text="Status")
