@@ -137,12 +137,12 @@ class GUI:
     def cleanCommonName(self, name):
         p = re.compile(r"alt=\"(.*?)\"")
         m = p.search(name)
-        return m.groups()[0].replace(" ", "-")
+        return m.groups()[0]
 
     def cleanLatinName(self, name):
         p = re.compile(r"<i\b[^>]*>(.*?)</i>")
         m = p.search(name)
-        return m.groups()[0].replace(" ", "-")
+        return m.groups()[0]
 
     def createRawTable(self):
         # Setup html file to find required information 
@@ -196,8 +196,9 @@ class GUI:
                                                            animal_obj.getLatinName(),
                                                            animal_obj.getTaxID()))
                 
-                download_latin_name = latin_name.replace("-", "_").lower()
-                download_path = os.path.join(self.ref_prot_path, download_latin_name, "pep", "")
+                download_latin_name = latin_name.replace(" ", "_").lower()
+                # download_path = os.path.join(self.ref_prot_path, download_latin_name, "pep", "")
+                download_path = r"{}/{}/pep/".format(self.ref_prot_path, download_latin_name)
                 animal_obj.setFTPFile(download_path)
                 self.animal_list.append(animal_obj)
             self.removeInvalidAnimals()
