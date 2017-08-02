@@ -1,13 +1,10 @@
 """
 Delan Huang, 2017-07-12
 TODO:
- - Error checking for when species isn't in current_fasta folder (could solve by preemptively checking if
- the path exists, and if it returns an error, remove it from animal_list)
  - Reverse/Contams support
- - Full general error checking
- - Status bar updates
  - Clean up GUI
  - Clean up excess/old code
+ - More Error Checking (adding/dropping when nothing selected, )
 """
 # Built-in module imports
 from tkinter import *
@@ -21,30 +18,45 @@ import re
 import copy
 import urllib.request
 import pickle
+import gzip
 from datetime import datetime
 
 # Imports dependent on other files
 # This python file only uses built-in modules, no external downloads required
 try:
     import fasta_lib_Py3 as fasta_lib
+    import reverse_fasta as add_rev
 except ImportError:
     print("Could not import all files.")
     sys.exit()
 
-# Global Variables
-FTP_URL = 'ftp.ensembl.org'
-REF_PROT_PATH = '/pub/current_fasta'
-HEADERS = ["COMMON NAME", "LATIN NAME", "TAX ID", "ENSEMBL ASSEMBLY"]
-BANNED = ["README", "CHECKSUMS", "abinitio.fa.gz"]
-SCRIPT_LOCATION = os.path.dirname(os.path.realpath(__file__))
-
-# Get HTML page from Ensembl for parsing
-PARSE_URL = r'http://www.ensembl.org/info/about/species.html'
-RESPONSE = urllib.request.urlopen(PARSE_URL)
-DATA = RESPONSE.read()
-TEXT = DATA.decode('utf-8')
-
 # Helper Classes
+class Checkboxes(Frame):
+    """Creates and packs a set of checkboxes."""
+    def __init__(self, parent=None, checkboxes=[], side=LEFT):
+        """Constructor creates the checkboxes in the checkboxes list."""
+        Frame.__init__(self, parent)
+        self.vars = []
+        for checkbox in checkboxes:
+            var = IntVar()
+            check = Checkbutton(self, text=checkbox, variable=var)
+            check.pack(side=side, fill=X, expand=YES, padx=10)
+            self.vars.append(var)
+
+    def get_state(self):
+        """Returns the state of the check boxes"""
+        return map((lambda var: var.get()), self.vars)
+
+    def check_all(self):
+        """Sets all check boxes to checked."""
+        for var in self.vars:
+            var.set(1)
+
+    def uncheck_all(self):
+        """Unchecks all checkboxes."""
+        for var in self.vars:
+            var.set(0)
+            
 class AnimalEntry:
     def __init__(self, c_n, l_n, taxid, e_a, acc, g_m, v_d, r_d, p_a):
         self.common_name = c_n          # Species Common Name
@@ -101,9 +113,9 @@ class GUI:
         self.date = ""                          # This should be the date uploaded(i.e. 2017.07 for July release)        
         self.headers = headers                  # Needed for columns in tables
         self.proteome_IDs = []                  # List of unique proteome IDs
-        self.script_location = script_location # Script path location
+        self.script_location = script_location  # Script path location
         self.data = None                        # Holds unpickled information
-        self.quit_save_state = ""               # Trigger for updating defaults file on quit status
+        self.quit_save_state = "not triggered"  # Trigger for updating defaults file on quit status
         
         # List of characters that cannot be in folder names
         self.illegal_characters = r"[\\#%&{}/<>*?:]"
@@ -145,41 +157,60 @@ class GUI:
         self.raw_table = TEXT[start_ind:end_ind]
 
     def parseRawTable(self):
-        # Parse header into animal list
-        # Need an alternative path for missing entries where gene build method is "import"
-        parser = re.compile(r'<td\b[^>]*>(.*?)</td>|</span\b[^>]*>(.*?)</span>')
-        matched_groups = parser.findall(self.raw_table)
-        parsed = []
-        for i in range(0, len(matched_groups), 9):  # Split 1D list into 2D so that each animal has 9 attributes
-            animal = matched_groups[i:i+9]
-            parsed.append(animal)
+        try:
+            # Load Entries if already saved from defaults and make sure its up to date
+            self.animal_list = self.data['Entries']
+            self.getDate()
+            if self.date == self.data['Date']:
+                return None
             
-        # We want to remove the empty space produced by alternative path in regex
-        for animal in parsed:
-            for i in range(len(animal)):
-                for path in animal[i]:
-                    if path:
-                        animal[i] = path
-            common_name = self.cleanCommonName(animal[0])
-            latin_name = self.cleanLatinName(animal[1])
-            tax_id = animal[2]
-            if not str(tax_id).isdigit():  # In case tax_id is something other than a number
-                tax_id = "000"
+        except (IndexError, TypeError) as err:  # These errors generally occur if a defaults file hasn't been created yet
+            print("Error: ", err)
+            # Parse header into animal list
+            # Need an alternative path for missing entries where gene build method is "import"
+            parser = re.compile(r'<td\b[^>]*>(.*?)</td>|</span\b[^>]*>(.*?)</span>')
+            matched_groups = parser.findall(self.raw_table)
+            parsed = []
+            for i in range(0, len(matched_groups), 9):  # Split 1D list into 2D so that each animal has 9 attributes
+                animal = matched_groups[i:i+9]
+                parsed.append(animal)
+                
+            # We want to remove the empty space produced by alternative path in regex
+            for animal in parsed:
+                for i in range(len(animal)):
+                    for path in animal[i]:
+                        if path:
+                            animal[i] = path
+                common_name = self.cleanCommonName(animal[0])
+                latin_name = self.cleanLatinName(animal[1])
+                tax_id = animal[2]
+                if not str(tax_id).isdigit():  # In case tax_id is something other than a number
+                    tax_id = "000"
 
-            # Create main animal entry
-            animal_obj = AnimalEntry(common_name, latin_name, tax_id, animal[3], animal[4],
-                                     animal[5], animal[6], animal[7], animal[8])
+                # Create main animal entry
+                animal_obj = AnimalEntry(common_name, latin_name, tax_id, animal[3], animal[4],
+                                         animal[5], animal[6], animal[7], animal[8])
 
-            # Set animal object's folder name and ftp download path
-            animal_obj.setFolderName("{}_{}_{}".format(animal_obj.getCommonName(),
-                                                       animal_obj.getLatinName(),
-                                                       animal_obj.getTaxID()))
-            
-            download_latin_name = latin_name.replace("-", "_").lower()
-            download_path = r"{}/{}/pep/".format(self.ref_prot_path, download_latin_name)
-            animal_obj.setFTPFile(download_path)
-            self.animal_list.append(animal_obj)
-        self.getDate()
+                # Set animal object's folder name and ftp download path
+                animal_obj.setFolderName("{}_{}_{}".format(animal_obj.getCommonName(),
+                                                           animal_obj.getLatinName(),
+                                                           animal_obj.getTaxID()))
+                
+                download_latin_name = latin_name.replace("-", "_").lower()
+                download_path = os.path.join(self.ref_prot_path, download_latin_name, "pep", "")
+                animal_obj.setFTPFile(download_path)
+                self.animal_list.append(animal_obj)
+            self.removeInvalidAnimals()
+            self.getDate()
+
+    def removeInvalidAnimals(self):
+        self.login()
+        # If we cant find the animal directory, remove it from animal list
+        for animal in self.animal_list:
+            try:
+                self.ftp.cwd(animal.getFTPFile())
+            except ftplib.error_perm:
+                self.animal_list.remove(animal)
 
     def getDate(self):
         self.login()
@@ -202,8 +233,8 @@ class GUI:
         
     # TODO: Species name search is working, but taxID is not
     def filterEntries(self):
-        """ FIX DESC: Checks values search fields, filters all proteome IDs associated with
-        selected kingdoms, taxon numbers, and/or species names, then returns a list with all matching entries.
+        """Checks values search fields, filters all animals associated with
+        taxon numbers, and/or species names, then returns a list with all matching entries.
         """
         # get the species and taxonomy substring filters
         species_entry = self.searchSpecies.get().lower()
@@ -218,7 +249,7 @@ class GUI:
                                  or species_entry in entry.getLatinName().lower()]
         
     def get_filtered_proteome_list(self):
-        """ Calls relevant methods to create filtered lists, then finds intersection of the lists, 
+        """Calls relevant methods to create filtered lists, then finds intersection of the lists, 
         and outputs relevant info to user
         """
         self.filterEntries()
@@ -243,7 +274,7 @@ class GUI:
         for entry in sorted(entries):
             self.tree_left.insert('', 'end', values=entry)
 
-        self.status_bar.config(text=("List updated with %s entries" % len(self.selected_entries)))
+        self.update_status_bar("List updated with %s entries" % len(self.selected_entries))
         
     def reset_filters(self):
         """Resets filters to defaults."""
@@ -279,7 +310,7 @@ class GUI:
             selected_copy = self.tree_right.item(selected)  # creates a set of dicts
             self.tree_right.delete(selected)
             self.tree_left.insert('', 'end', values=selected_copy['values'])
-        self.status_bar.config(text="{} dropped".format(selected_copy['values'][0]))
+        self.update_status_bar("{} dropped".format(selected_copy['values'][0]))
 
     def move_to_right(self):
         selection = self.tree_left.selection()  
@@ -288,7 +319,7 @@ class GUI:
             selected_copy = self.tree_left.item(selected)
             self.tree_left.delete(selected)
             self.tree_right.insert('', 'end', values=selected_copy['values'])
-        self.status_bar.config(text="{} added".format(selected_copy['values'][0]))  # Species name should be first
+        self.update_status_bar("{} added".format(selected_copy['values'][0]))  # Species name should be first
 
     def pickle_entries(self, databases):
         text = {"Databases":databases, "Date":self.date, "Entries":self.animal_list}
@@ -422,14 +453,14 @@ class GUI:
             
         # get parent folder location for database download
         db_default = os.getcwd()
-        abs_path = filedialog.askdirectory(parent=self.root, initialdir=db_default,
+        self.abs_dl_path = filedialog.askdirectory(parent=self.root, initialdir=db_default,
                                            title='Select container for Ensembl downloads')
-        if not abs_path:
+        if not self.abs_dl_path:
             return None
 
         # Make a separate folder to contain all files
         ensembl_dir_name = r"Ensembl_{}".format(self.date)
-        ensembl_dir_path = os.path.join(abs_path, ensembl_dir_name)
+        ensembl_dir_path = os.path.join(self.abs_dl_path, ensembl_dir_name)
         try:
             os.mkdir(ensembl_dir_path)
         except FileExistsError:
@@ -471,11 +502,54 @@ class GUI:
                 # Skip any files that we do not want to download
                 if self.banned_file(fname):
                     continue
-                self.update_status_bar(text="Downloading {} file".format(fname))
+                self.update_status_bar("Downloading {} file".format(fname))
                 self.ftp.retrbinary('RETR {}'.format(fname), open('{}'.format(fname), 'wb').write)
                 print("{} is done downloading".format(fname))
+                self.process_fasta_files(os.path.join(ensembl_dir_path, entry.getFolderName(), fname), entry)
 
         messagebox.showinfo("All Downloads Completed!", "Downloads Finished!")
+
+    def process_fasta_files(self, file_location, entry):
+        """Uncompresses canonical FASTA file and does some analysis. Also
+        combines fasta and additional fasta files with decompression.
+        """
+        # Get the list of protein fasta files
+        with gzip.open(file_location, 'rb') as in_file:
+            file_content = in_file.read()
+            
+        fasta_file = file_location.replace(".gz", "")
+        with open(fasta_file, 'wb') as out_file:
+            out_file.write(file_content)
+        
+        # chdir into correct folder and make sure all file paths are set up correctly
+        contam_location = self.script_location
+        ensembl_dir_name = r"Ensembl_{}".format(self.date)
+        os.chdir(os.path.join(self.abs_dl_path, ensembl_dir_name))
+        # Add forward/reverse/contams
+        self.addRevSequences(fasta_file, contam_location)
+
+    def addRevSequences(self, fasta_file, contam_location):
+        """Gets selection value from radiobuttons and then passes those values to imported fasta_reverse function.
+        More documentation on how fasta_reverse works can be found in the reverse_fasta.py file.
+        """
+        reverse_values = list(self.reverse_contams.get_state())
+        # Initially set everything to false
+        forward = False
+        reverse = False
+        both = False
+        decoy = reverse_values[0]
+        contams = reverse_values[1]
+        
+        if decoy == 1 and contams == 1:
+            both = True
+        elif decoy == 1 and contams == 0:
+            reverse = True
+            contam_location = os.path.join(contam_location, "block")  # Prevent script from finding contams file
+        elif decoy ==0 and contams == 1:
+            forward = True
+        else:
+            print("Error occurred in determining checkbox values or no selection made!")
+        add_rev.fasta_reverse(fasta_file, forward, reverse, both, contam_location)
         
     def banned_file(self, fname):
         """False if fname in banned list."""
@@ -514,11 +588,18 @@ class GUI:
         optionFrame = LabelFrame(self.root, text="Options")
         optionFrame.pack(side=TOP, padx=5, pady=5)
 
+        # Additiona database types Frame
+        ## Main Frame
+        revFrame = LabelFrame(optionFrame, text="Additional Database Types")
+        revFrame.pack(fill=BOTH, expand=YES, padx=5, pady=5)
+        self.reverse_contams = Checkboxes(revFrame, ["Decoy Database(s)", "Contaminants"])
+        self.reverse_contams.pack(side = LEFT, fill=X, padx=5, pady=5)
+        
         # Search Window
         ## Main Frame
         searchWindowFrame = LabelFrame(optionFrame, text="Filters")
         searchWindowFrame.pack(side=BOTTOM, fill=BOTH, expand=YES, padx=5, pady=5)
-
+        
         # Create search bars/buttons
         species_frame = Frame(searchWindowFrame)
         species_frame.pack(fill=X, padx=5, pady=5)
@@ -643,12 +724,26 @@ class GUI:
         
         # open the FTP connection
         self.login()
+        self.import_defaults(True)  # initial import of defaults
         self.createRawTable()
         self.parseRawTable()  # Create Entry objects
-        self.import_defaults(True)  # initial import of defaults
         self.root.protocol("WM_DELETE_WINDOW", self.quit_gui)  # Override window close event
         self.root.mainloop()
 
 # Main Function
-gui = GUI(FTP_URL, REF_PROT_PATH, TEXT, HEADERS, BANNED, SCRIPT_LOCATION)
-gui.create_gui()
+if __name__ == '__main__':
+    # Global Variables
+    FTP_URL = 'ftp.ensembl.org'
+    REF_PROT_PATH = '/pub/current_fasta'
+    HEADERS = ["COMMON NAME", "LATIN NAME", "TAX ID", "ENSEMBL ASSEMBLY"]
+    BANNED = ["README", "CHECKSUMS", "abinitio.fa.gz"]
+    SCRIPT_LOCATION = os.path.dirname(os.path.realpath(__file__))
+
+    # Get HTML page from Ensembl for parsing
+    PARSE_URL = r'http://www.ensembl.org/info/about/species.html'
+    RESPONSE = urllib.request.urlopen(PARSE_URL)
+    DATA = RESPONSE.read()
+    TEXT = DATA.decode('utf-8')
+    
+    gui = GUI(FTP_URL, REF_PROT_PATH, TEXT, HEADERS, BANNED, SCRIPT_LOCATION)
+    gui.create_gui()

@@ -682,7 +682,6 @@ class GUI:
         os.chdir(os.path.join(self.abs_dl_path, uniprot_dir_name))
         # Add forward/reverse/contams
         for file in combined_files:
-            print(file)
             self.addRevSequences(file, contam_location)
             
 
