@@ -1,10 +1,10 @@
 """
 Delan Huang, 2017-07-12
 TODO:
- - Reverse/Contams support
  - Clean up GUI
  - Clean up excess/old code
  - More Error Checking (adding/dropping when nothing selected, )
+ - Overall, program is very rough but functional
 """
 # Built-in module imports
 from tkinter import *
@@ -280,6 +280,7 @@ class GUI:
         """Resets filters to defaults."""
         self.searchSpecies.delete(0, END)
         self.searchTax.delete(0, END)
+        self.reverse_contams.uncheck_all()
         
     def sort_text_column(self, tv, col, reverse=False):
         l = [(tv.set(k, col), k) for k in tv.get_children('')]
