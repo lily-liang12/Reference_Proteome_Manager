@@ -894,34 +894,21 @@ class GUI:
         buttonFrame = LabelFrame(entryFrame, text="Menu Buttons")
         buttonFrame.pack(side=LEFT)
 
-        addButton = Button(buttonFrame, text="Add Proteome(s)",
-                           command=self.move_to_right)
-        addButton.pack()
-        addButton.config(width=15)
+        # Set button attributes
+        button_names = ["Add Proteome(s)", "Drop Proteom(s)",
+                        "Save Defaults", "Import Defaults",
+                        "Download", "Quit"]
+        button_commands = [self.move_to_right, self.move_to_left,
+                           self.save_to_defaults, self.import_defaults,
+                           self.download_databases, self.quit_gui]
+        btn_width = 15
 
-        removeButton = Button(
-            buttonFrame, text="Drop Proteome(s)", command=self.move_to_left)
-        removeButton.pack()
-        removeButton.config(width=15)
-
-        saveButton = Button(buttonFrame, text="Save Defaults",
-                            command=self.save_to_defaults)
-        saveButton.pack()
-        saveButton.config(width=15)
-
-        importButton = Button(
-            buttonFrame, text="Import Defaults", command=self.import_defaults)
-        importButton.pack()
-        importButton.config(width=15)
-
-        downloadButton = Button(
-            buttonFrame, text="Download", command=self.download_databases)
-        downloadButton.pack()
-        downloadButton.config(width=15)
-
-        quitButton = Button(buttonFrame, text="Quit", command=self.quit_gui)
-        quitButton.pack()
-        quitButton.config(width=15)
+        # Create buttons
+        for btn_name, btn_command in zip(button_names, button_commands):
+            button = Button(buttonFrame, text=btn_name,
+                            command=btn_command)
+            button.pack()
+            button.config(width=btn_width)
 
         # Right Window
         rightWindowFrame = LabelFrame(entryFrame, text="Selected Proteomes")
