@@ -1,9 +1,8 @@
 """
 Delan Huang, 2017-07-12
 TODO:
- - Clean up GUI
- - Clean up excess/old code
  - More Error Checking (adding/dropping when nothing selected, )
+ - Aesthetic/housekeeping changes to both UI and code
  - Overall, program is very rough but functional
 """
 # Built-in module imports
@@ -215,7 +214,8 @@ class GUI:
 
     def getDate(self):
         self.login()
-        self.ftp.cwd(self.animal_list[1].getFTPFile())  # Just hope that this animal actually exists in ftp database
+        # Just hope that this animal actually exists in ftp database, because aardvark doesn't
+        self.ftp.cwd(self.animal_list[1].getFTPFile())  
         
         # Create a list of all files in each species folder
         listing = []
@@ -564,8 +564,7 @@ class GUI:
     def update_status_bar(self, _text):
         """Updates status bar with new text"""
         self.status_bar.config(text=_text)
-        self.status_bar.update_idletasks()
-        self.root.after(100)
+        self.root.update_idletasks()
         
     def quit_gui(self):
         """Quits the GUI application."""
