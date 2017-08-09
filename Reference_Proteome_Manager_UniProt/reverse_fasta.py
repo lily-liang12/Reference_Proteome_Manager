@@ -37,13 +37,14 @@ import fasta_lib_Py3 as fasta_lib
 # flags to make different output databases
 MAKE_FORWARD = True
 MAKE_REVERSE = False
-MAKE_BOTH = True
+MAKE_BOTH = False
 
 
 def fasta_reverse(fasta_file, forward=False, reverse=False, both=True, _path=""):
     """Adds contaminants and reverses entries for a FASTA protein database.
 
-    Call with single fasta file name. If "forward", make sequences plus contaminants,
+    Call with single fasta file name.
+    If "forward", make sequences plus contaminants,
     if "reverse", make reversed sequences with reversed contaminants,
     if "both", make concatenated target/decoy with contaminants.
     """
@@ -73,20 +74,21 @@ def fasta_reverse(fasta_file, forward=False, reverse=False, both=True, _path="")
     pcount = 0
 
     # try to find the contaminants database file
-    try:
-        # If no contam file path provided, search for it in current directory
-        if not _path:
-            if os.path.exists('all_contams_fixed.fasta'):
-                _file = 'all_contams_fixed.fasta'
-                print('...contams file found:', os.path.realpath(_file))
-            else:
-                path = os.path.split(fasta_file)[0]
-                _file = os.path.join(path, 'all_contams_fixed.fasta')
-                print('trying:', _file)
+    # If no contam file path provided, search for it in current directory
+    _file = None
+    if not _path:
+        if os.path.exists('all_contams_fixed.fasta'):
+            _file = 'all_contams_fixed.fasta'
         else:
+            path = os.path.split(fasta_file)[0]
+            if os.path.exists(os.path.join(path, 'all_contams_fixed.fasta')):
+                _file = os.path.join(path, 'all_contams_fixed.fasta')
+    else:
+        if os.path.exists(os.path.join(_path, 'all_contams_fixed.fasta')):
             _file = os.path.join(_path, 'all_contams_fixed.fasta')
-            
-        # create reader and fetch contaminants
+        
+    # create reader and add contaminants (if contams file was found)
+    if _file:
         f = fasta_lib.FastaReader(_file)
         while f.readNextProtein(prot, check_for_errs=True):
             pcount += 1
@@ -95,11 +97,11 @@ def fasta_reverse(fasta_file, forward=False, reverse=False, both=True, _path="")
             rev.printProtein(rev_file_obj)
         for obj in write:
             print('...there were %s contaminant entries in %s' %
-                  ("{0:,d}".format(pcount), _file), file=obj)           
-    except:
+                  ("{0:,d}".format(pcount), os.path.split(_file)[1]), file=obj)
+    else:        
         for obj in write:
-            print('...WARNING: "all_contams_fixed.fasta" not found!', file=obj)
-    
+            print('...WARNING: contaminants were not added', file=obj)
+        
     # read proteins until EOF and write proteins to "forward" and "reversed" files
     f = fasta_lib.FastaReader(fasta_file)
     
