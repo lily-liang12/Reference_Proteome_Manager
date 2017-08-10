@@ -51,6 +51,7 @@ from datetime import datetime
 # This python file only uses built-in modules, no external downloads required
 try:
     import fasta_lib_Py3 as fasta_lib
+    import Ensembl_fixer
     import reverse_fasta as add_rev
 except ImportError:
     print("Could not import all files.")
@@ -554,8 +555,12 @@ class GUI:
         contam_location = self.script_location
         ensembl_dir_name = r"Ensembl_{}".format(self.date)
         os.chdir(os.path.join(self.abs_dl_path, ensembl_dir_name))
+
+        # analyze and fix descriptions
+        new_fasta_file = Ensembl_fixer.main(fasta_file)
+        
         # Add forward/reverse/contams
-        self.addRevSequences(fasta_file, contam_location)
+        self.addRevSequences(new_fasta_file, contam_location)
 
     def addRevSequences(self, fasta_file, contam_location):
         """Gets selection value from radiobuttons and then passes those values to imported fasta_reverse function.
@@ -578,7 +583,7 @@ class GUI:
             forward = True
         else:
             print("Error occurred in determining checkbox values or no selection made!")
-        add_rev.fasta_reverse(fasta_file, forward, reverse, both, contam_location)
+        add_rev.fasta_reverse(fasta_file, forward, reverse, both, contam_path=contam_location)
         
     def banned_file(self, fname):
         """False if fname in banned list."""
