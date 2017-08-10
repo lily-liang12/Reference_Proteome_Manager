@@ -605,7 +605,7 @@ class GUI:
             contam_location = os.path.join(contam_location, "block")  # Prevent script from finding contams file
 
         if contams or decoy:        
-            add_rev.fasta_reverse(fasta_file, forward, reverse, both, contam_location)
+            add_rev.fasta_reverse(fasta_file, forward, reverse, both, contam_path=contam_location)
             
     def download_databases(self):
         """Fetches the database files for the selected species."""

@@ -40,7 +40,7 @@ MAKE_REVERSE = False
 MAKE_BOTH = True
 
 
-def fasta_reverse(fasta_file, forward=False, reverse=False, both=True, log_obj=None, _path=""):
+def fasta_reverse(fasta_file, forward=False, reverse=False, both=True, log_obj=None, contam_path=""):
     """Adds contaminants and reverses entries for a FASTA protein database.
 
     Call with single fasta file name.
