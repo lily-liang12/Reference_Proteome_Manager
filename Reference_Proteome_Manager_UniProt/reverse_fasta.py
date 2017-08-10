@@ -37,10 +37,10 @@ import fasta_lib_Py3 as fasta_lib
 # flags to make different output databases
 MAKE_FORWARD = True
 MAKE_REVERSE = False
-MAKE_BOTH = False
+MAKE_BOTH = True
 
 
-def fasta_reverse(fasta_file, forward=False, reverse=False, both=True, _path=""):
+def fasta_reverse(fasta_file, forward=False, reverse=False, both=True, log_obj=None, _path=""):
     """Adds contaminants and reverses entries for a FASTA protein database.
 
     Call with single fasta file name.
@@ -65,7 +65,8 @@ def fasta_reverse(fasta_file, forward=False, reverse=False, both=True, _path="")
     
     # create a log file to mirror screen output
     _folder = os.path.split(fasta_file)[0]
-    log_obj = open(os.path.join(_folder, 'fasta_utilities.log'), 'a')
+    if not log_obj:
+        log_obj = open(os.path.join(_folder, 'fasta_utilities.log'), 'a')
     write = [None, log_obj]
     fasta_lib.time_stamp_logfile('\n>>> starting: reverse_fasta.py', log_obj)
     
@@ -205,7 +206,7 @@ if __name__ == '__main__':
 
     # print version info, etc. (here because of the loop)    
     print('=================================================================')
-    print(' reverse_fasta.py, v 1.1.1, written by Phil Wilmarth, OHSU, 2017 ')
+    print(' reverse_fasta.py, v 1.1.2, written by Phil Wilmarth, OHSU, 2017 ')
     print('=================================================================')
     
     # call reverse function
