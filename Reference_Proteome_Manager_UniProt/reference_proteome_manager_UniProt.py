@@ -923,6 +923,7 @@ class GUI:
         self.parseReadMe()      # Create Entry objects if there are no entry objects 
         self.load_defaults()  # Initial import of defaults
         self.root.protocol("WM_DELETE_WINDOW", self.quit_gui)  # Override window close event
+        self.get_filtered_proteome_list()   # show the full left list to start
         self.root.mainloop()
 
 

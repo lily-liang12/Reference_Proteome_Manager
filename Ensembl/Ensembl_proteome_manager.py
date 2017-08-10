@@ -102,26 +102,37 @@ class AnimalEntry:
     # Define getter/setter methods (Can include more as necessary)
     def getCommonName(self):
         return self.common_name
+    
     def setCommonName(self, c_n):
         self.common_name = c_n
+        
     def getLatinName(self):
         return self.latin_name
+    
     def setLatinName(self,l_n):
         self.latin_name = l_n
+        
     def getTaxID(self,):
         return self.taxID
+    
     def setTaxID(self, taxid):
         self.taxID = taxid
+        
     def getEnsemblAssembly(self):
         return self.ensembl_assembly
+    
     def setEnsemblAssembly(self, e_a):
         self.ensembl_assembly = e_a
+        
     def getFolderName(self):
         return self.folder_name
+    
     def setFolderName(self, folder_name):
         self.folder_name = folder_name
+        
     def getFTPFile(self):
         return self.ftp_file_path
+    
     def setFTPFile(self, file_path):
         self.ftp_file_path = file_path
 
@@ -472,7 +483,6 @@ class GUI:
                 self.quit_save_state = "triggered"
                 self.save_to_defaults()
             
-    """TODO: This function """        
     def download_databases(self):
         """Fetches the database files for the selected species."""
         self.login()    # refresh the FTP connection
@@ -541,8 +551,7 @@ class GUI:
         messagebox.showinfo("All Downloads Completed!", "Downloads Finished!")
 
     def process_fasta_files(self, file_location, entry):
-        """Uncompresses canonical FASTA file and does some analysis. Also
-        combines fasta and additional fasta files with decompression.
+        """Uncompresses FASTA file, reformats descriptions, and does some analysis.
         """
         # analyze and fix descriptions (also uncompresses the file)
         new_fasta_file = Ensembl_fixer.main(file_location)
@@ -552,7 +561,7 @@ class GUI:
         ensembl_dir_name = r"Ensembl_{}".format(self.date)
         os.chdir(os.path.join(self.abs_dl_path, ensembl_dir_name))
         
-        # Add forward/reverse/contams
+        # Add forward/reverse/contams, as specified by checkboxes
         self.addRevSequences(new_fasta_file, contam_location)
 
     def addRevSequences(self, fasta_file, contam_location):
@@ -567,16 +576,15 @@ class GUI:
         decoy = reverse_values[0]
         contams = reverse_values[1]
         
-        if decoy == 1 and contams == 1:
+        if decoy:
             both = True
-        elif decoy == 1 and contams == 0:
-            reverse = True
-            contam_location = os.path.join(contam_location, "block")  # Prevent script from finding contams file
-        elif decoy ==0 and contams == 1:
+        if contams and not decoy:
             forward = True
-        else:
-            print("Error occurred in determining checkbox values or no selection made!")
-        add_rev.fasta_reverse(fasta_file, forward, reverse, both, contam_path=contam_location)
+        if not contams:
+            contam_location = os.path.join(contam_location, "block")  # Prevent script from finding contams file
+
+        if contams or decoy:        
+            add_rev.fasta_reverse(fasta_file, forward, reverse, both, contam_path=contam_location)
         
     def banned_file(self, fname):
         """False if fname in banned list."""
