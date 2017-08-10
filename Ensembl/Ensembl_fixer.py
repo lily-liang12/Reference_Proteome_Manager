@@ -82,6 +82,8 @@ def main(fasta_file):
         print('WARNING! creating new file name failed')
         print('...make sure database is not compressed')
         return False
+    if new_fasta_file.endswith('.gz'):
+        new_fasta_file = new_fasta_file[:-3]
     new_fasta_file = os.path.join(os.path.dirname(fasta_file), new_fasta_file)
 
     # initializations
@@ -201,7 +203,7 @@ if __name__ == '__main__':
             database = os.getcwd()
         fasta_files = fasta_lib.get_files(database,
                                           [('FASTA files', '*.fasta'), ('Zipped files', '*.gz'),
-                                           ('fa files', '*.fa'), git status('All files', '*.*')],
+                                           ('fa files', '*.fa'), ('All files', '*.*')],
                                           'Select a FASTA database')
         if not fasta_files: sys.exit() # cancel button response
 

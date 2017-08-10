@@ -1,4 +1,4 @@
-"""'reference_proteome_manager_Ensembl.py' written by Delan Huang, OHSU, July 2017.
+"""'Ensembl_proteome_manager.py' written by Delan Huang, OHSU, July 2017.
 
 The MIT License (MIT)
 
@@ -32,19 +32,20 @@ TODO:
  - Aesthetic/housekeeping changes to both UI and code
  - Overall, program is very rough but functional
 """
+# debugging and edits -PW 8/10/2017
+
 # Built-in module imports
 from tkinter import *
 from tkinter.ttk import *
-from tkinter import messagebox, filedialog
+from tkinter import messagebox
+from tkinter import filedialog
 import os
 import sys
 import ftplib
-import datetime
+##import datetime
 import re
-import copy
 import urllib.request
 import pickle
-import gzip
 from datetime import datetime
 
 # Imports dependent on other files
@@ -543,21 +544,13 @@ class GUI:
         """Uncompresses canonical FASTA file and does some analysis. Also
         combines fasta and additional fasta files with decompression.
         """
-        # Get the list of protein fasta files
-        with gzip.open(file_location, 'rb') as in_file:
-            file_content = in_file.read()
-            
-        fasta_file = file_location.replace(".gz", "")
-        with open(fasta_file, 'wb') as out_file:
-            out_file.write(file_content)
-        
+        # analyze and fix descriptions (also uncompresses the file)
+        new_fasta_file = Ensembl_fixer.main(file_location)
+
         # chdir into correct folder and make sure all file paths are set up correctly
         contam_location = self.script_location
         ensembl_dir_name = r"Ensembl_{}".format(self.date)
         os.chdir(os.path.join(self.abs_dl_path, ensembl_dir_name))
-
-        # analyze and fix descriptions
-        new_fasta_file = Ensembl_fixer.main(fasta_file)
         
         # Add forward/reverse/contams
         self.addRevSequences(new_fasta_file, contam_location)
@@ -761,6 +754,7 @@ class GUI:
         self.createRawTable()
         self.parseRawTable()  # Create Entry objects
         self.root.protocol("WM_DELETE_WINDOW", self.quit_gui)  # Override window close event
+        self.get_filtered_proteome_list()   # show the full left list to start
         self.root.mainloop()
 
 # Main Function

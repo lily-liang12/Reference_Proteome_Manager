@@ -1,4 +1,4 @@
-"""'reference_proteome_manager_UniProt.py' written by Delan Huang, OHSU, July 2017.
+"""'UniProt_reference_proteome_manager.py' written by Delan Huang, OHSU, July 2017.
 
 The MIT License (MIT)
 
