@@ -6,8 +6,10 @@ A User Guide is included in each program's directory to help users. Please check
 
 ## Getting Started
 ### Prerequisites
-This program was written using Python v.3.6.2 on Windows 7.
-The dependent files are "fasta_lib_Py3.py" and "reverse_fasta.py" which are required in order for "reference_proteome_manager_UniProt.py" to run.
+This program was written using Python v.3.6.2.
+It has been tested with Windows 7, Windows 10, and macOS 10.12.6.
+The dependent files are "fasta_lib_Py3.py", "reverse_fasta.py", and "all_contams_fixed.fasta" 
+which are required in order for "reference_proteome_manager_UniProt.py" to run will all features.
 ### Installing
 Click [here](https://www.python.org/downloads/release/python-362/) to download Python 3.6.2
 
