@@ -77,7 +77,7 @@ def fasta_reverse(fasta_file, forward=False, reverse=False, both=True, log_obj=N
     # try to find the contaminants database file
     # If no contam file path provided, search for it in current directory
     _file = None
-    if not _path:
+    if not contam_path:
         if os.path.exists('all_contams_fixed.fasta'):
             _file = 'all_contams_fixed.fasta'
         else:
@@ -85,8 +85,8 @@ def fasta_reverse(fasta_file, forward=False, reverse=False, both=True, log_obj=N
             if os.path.exists(os.path.join(path, 'all_contams_fixed.fasta')):
                 _file = os.path.join(path, 'all_contams_fixed.fasta')
     else:
-        if os.path.exists(os.path.join(_path, 'all_contams_fixed.fasta')):
-            _file = os.path.join(_path, 'all_contams_fixed.fasta')
+        if os.path.exists(os.path.join(contam_path, 'all_contams_fixed.fasta')):
+            _file = os.path.join(contam_path, 'all_contams_fixed.fasta')
         
     # create reader and add contaminants (if contams file was found)
     if _file:
@@ -178,8 +178,8 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--both', dest='both',
                         help='does not makes forward and reversed sequences with contaminants',
                         action='store_false', default=MAKE_BOTH)
-    parser.add_argument('-v', '--version', action='version', version='%(prog)s version 1.1.1')
-    parser.add_argument('file', help='list of FASTA files to process', nargs='*')
+    parser.add_argument('-v', '--version', action='version', version='%(prog)s version 1.1.2')
+    parser.add_argument('files', help='list of FASTA files to process', nargs='*')
 
     args = parser.parse_args()
         
