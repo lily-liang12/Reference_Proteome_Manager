@@ -201,7 +201,7 @@ if __name__ == '__main__':
             database = os.getcwd()
         fasta_files = fasta_lib.get_files(database,
                                           [('FASTA files', '*.fasta'), ('Zipped files', '*.gz'),
-                                           ('fa files', '*.fa'), ('All files', '*.*')],
+                                           ('fa files', '*.fa'), git status('All files', '*.*')],
                                           'Select a FASTA database')
         if not fasta_files: sys.exit() # cancel button response
 
