@@ -1,0 +1,2 @@
+['Human', 'Homo sapiens', 9606, 'GRCh38.p10']
+['Mouse', 'Mus musculus', 10090, 'GRCm38.p5']

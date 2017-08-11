@@ -161,7 +161,7 @@ def main(fasta_file):
         if len(p.sequence) > 0:
             p.printProtein(file_obj)
         else:
-            print('zero sequence:', p.accession)
+            print('   empty sequence (stop codon at start):', p.accession)
         fixcount += 1
     file_obj.close()
 

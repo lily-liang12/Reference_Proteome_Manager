@@ -87,10 +87,10 @@ class Checkboxes(Frame):
             
 class AnimalEntry:
     def __init__(self, c_n, l_n, taxid, e_a, acc, g_m, v_d, r_d, p_a):
-        self.common_name = c_n          # Species Common Name
-        self.latin_name = l_n           # Species Latin Name
-        self.taxID = taxid              # Taxonomy ID Number
-        self.ensembl_assembly = e_a     # 
+        self.common_name = c_n          # Species Common Name (string)
+        self.latin_name = l_n           # Species Latin Name (string)
+        self.taxID = taxid              # Taxonomy ID Number (int)
+        self.ensembl_assembly = e_a     # Ensembl assembly (string?)
         self.accession = acc            # 
         self.genebuild_method = g_m     # 
         self.variation_database = v_d   # 
@@ -139,20 +139,23 @@ class AnimalEntry:
 # Build GUI
 class GUI:
     """Main GUI class for application."""
-    def __init__(self, url, ref_prot_path, text, headers, banned_list, script_location):
+    def __init__(self, url, prot_path, text, headers, banned_list, script_location):
         """Create object and set some state attributes."""
-        self.url = url                          # Url of UniProt FTP site
-        self.ref_prot_path = ref_prot_path      # Location of databases
+        self.url = url                          # Url of Ensembl FTP site
+        self.ensembl_prot_path = prot_path      # Location of Ensembl databases
+        self.ensembl_ftp = os.path.dirname(prot_path)   # top FTP level
         self.ftp = None                         # FTP object (set in login method)
         self.text = text                        # HTML text of webpage
         self.raw_table = []                     # HTML text of just animals table
         self.selected_entries = []              # List of selected AnimalEntry objects
         self.animal_list = []                   # List of all AnimalEntry objects
         self.banned_list = banned_list          # List of file identifiers to be omitted when downloading
-        self.date = ""                          # This should be the date uploaded(i.e. 2017.07 for July release)        
+        self.date = ""                          # This should be the date uploaded(i.e. 2017.07 for July release)
+        self.release = ''                       # Ensembl release number
         self.headers = headers                  # Needed for columns in tables
         self.proteome_IDs = []                  # List of unique proteome IDs
         self.script_location = script_location  # Script path location
+        self.selected_default = os.path.join(script_location, 'default_Ensembl_species.txt')     # typical default species file path
         self.data = None                        # Holds unpickled information
         self.quit_save_state = "not triggered"  # Trigger for updating defaults file on quit status
         
@@ -195,16 +198,48 @@ class GUI:
         # Text Block that needs to be parsed
         self.raw_table = TEXT[start_ind:end_ind]
 
+    def loadAllEntries(self):
+        """Loads Ensembl proteome entries from pickle file.
+        If file does not exist or file is out-of-date, return False.
+        """
+        # get the ccontents of current_README file
+        self.login()
+        self.ftp.cwd(self.ensembl_ftp)  # move into current_README file location
+        listing = []
+        self.ftp.retrlines('RETR current_README', listing.append)
+
+        # Get the current release version from current_README
+        for line in listing:
+            if "Ensembl Release" in line:
+                items = line.split()
+                release = int(items[items.index('Release') + 1])
+
+        # see if pickle file exists
+        if not os.path.exists(os.path.join(self.script_location, 'Ensembl_current_release.pickle')):
+            print('pickle file not present')
+            self.release = release
+            return False
+
+        # get data from pickle file
+        self.data = self.unpickle_entries()
+        self.date = self.data["Date"]
+        self.release = self.data["Release"]
+        self.animal_list = self.data["Entries"]
+
+        # if pickled version matches current database version, then load entries from pickle file
+        if self.release == release:
+            return True
+        else:
+            print('saved release is out-of-date')
+            self.release = release  # set this to the current release version
+            return False
+
     def parseRawTable(self):
-        try:
-            # Load Entries if already saved from defaults and make sure its up to date
-            self.animal_list = self.data['Entries']
-            self.getDate()
-            if self.date == self.data['Date']:
-                return None
-            
-        except (IndexError, TypeError) as err:  # These errors generally occur if a defaults file hasn't been created yet
-            print("Error: ", err)
+        """Gets Ensembl proteome entries. Looks for pickle file first and checks if current, if not fetches from web."""
+        if self.loadAllEntries():
+            return  # pickled entries were read in and were current            
+        else:
+            print('fetching data from web')
             # Parse header into animal list
             # Need an alternative path for missing entries where gene build method is "import"
             parser = re.compile(r'<td\b[^>]*>(.*?)</td>|</span\b[^>]*>(.*?)</span>')
@@ -231,17 +266,21 @@ class GUI:
                                          animal[5], animal[6], animal[7], animal[8])
 
                 # Set animal object's folder name and ftp download path
-                animal_obj.setFolderName("{}_{}_{}".format(animal_obj.getCommonName(),
-                                                           animal_obj.getLatinName(),
-                                                           animal_obj.getTaxID()))
+                folder_name = "{}_{}_{}".format(animal_obj.getCommonName(), animal_obj.getLatinName(), animal_obj.getTaxID())
+                folder_name = folder_name.replace(" ", "-")
+                animal_obj.setFolderName(folder_name)
                 
                 download_latin_name = latin_name.replace(" ", "_").lower()
-                # download_path = os.path.join(self.ref_prot_path, download_latin_name, "pep", "")
-                download_path = r"{}/{}/pep/".format(self.ref_prot_path, download_latin_name)
+                # download_path = os.path.join(self.ensembl_prot_path, download_latin_name, "pep", "")
+                download_path = r"{}/{}/pep/".format(self.ensembl_prot_path, download_latin_name)
                 animal_obj.setFTPFile(download_path)
                 self.animal_list.append(animal_obj)
+                
             self.removeInvalidAnimals()
             self.getDate()
+
+            # save the fetched species information
+            self.pickle_entries()
 
     def removeInvalidAnimals(self):
         self.login()
@@ -272,7 +311,6 @@ class GUI:
         year = modifiedTime.split()[2]
         self.date = "{}.{}".format(month, year)
         
-    # TODO: Species name search is working, but taxID is not
     def filterEntries(self):
         """Checks values search fields, filters all animals associated with
         taxon numbers, and/or species names, then returns a list with all matching entries.
@@ -324,6 +362,7 @@ class GUI:
         self.reverse_contams.uncheck_all()
         
     def sort_text_column(self, tv, col, reverse=False):
+        """Sorts entries in treeview tables alphabetically."""
         l = [(tv.set(k, col), k) for k in tv.get_children('')]
         l.sort(key=lambda x: x[0].lower(), reverse=reverse)
 
@@ -335,6 +374,7 @@ class GUI:
         tv.heading(col, command=lambda col_=col: self.sort_text_column(tv, col_, not reverse))
     
     def sort_num_column(self, tv, col, reverse=False):
+        """Sorts entries in treeview tables numerically."""
         l = [(tv.set(k, col), k) for k in tv.get_children('')]
         l.sort(key=lambda x: int(x[0]), reverse=reverse)
 
@@ -346,6 +386,7 @@ class GUI:
         tv.heading(col, command=lambda col_=col: self.sort_num_column(tv, col_, not reverse))
     
     def move_to_left(self):
+        """Movies entry(ies) from right treeview to left."""
         selection = self.tree_right.selection()  # creates sets with elements "I001", etc.
         
         for selected in selection:
@@ -355,6 +396,7 @@ class GUI:
         self.update_status_bar("{} dropped".format(selected_copy['values'][0]))
 
     def move_to_right(self):
+        """Movies entry(ies) from left treeview to right."""
         selection = self.tree_left.selection()  
         
         for selected in selection:
@@ -363,73 +405,66 @@ class GUI:
             self.tree_right.insert('', 'end', values=selected_copy['values'])
         self.update_status_bar("{} added".format(selected_copy['values'][0]))  # Species name should be first
 
-    def pickle_entries(self, databases):
-        text = {"Databases":databases, "Date":self.date, "Entries":self.animal_list}
+    def pickle_entries(self):
+        """Saves full left display list to make subsequent launches faster."""
+        text = {"Date": self.date, "Release": self.release, "Entries": self.animal_list}
+
+        # make sure we are in the location with the script
         try:
             os.chdir(self.script_location)
         except OSError:
             print("OSError occurred during pickling. Cwd: {}".format(os.getcwd()))
 
-        with open('defaults_Ensembl.pickle', 'wb') as file:
+        with open('Ensembl_current_release.pickle', 'wb') as file:
             pickle.dump(text, file)
 
     def unpickle_entries(self):
-        with open('defaults_Ensembl.pickle', 'rb') as file:
+        """Loads saved full left display list of species."""
+        with open('Ensembl_current_release.pickle', 'rb') as file:
             return pickle.load(file)
 
-    def save_to_defaults(self):
-        answer = True
-        # Throw a warning to overwrite if user is trying to save to defaults
-        if self.quit_save_state == "not triggered":  # Check to make sure quit state wasn't triggered
-            if os.path.isfile("defaults_Ensembl.pickle"):
-                answer = messagebox.askyesno("File Detected!",
-                                             "A defaults.pickle file was already found. Would you like to overwrite?")
-        if answer:
-            if self.script_location:
-                save_path = self.script_location
-            else:
-                save_path = filedialog.askdirectory()
-                self.script_location = save_path
+    def save_defaults(self, overwrite=False):
+        """Saves species in the right display box to a default species text file"""
+        desired_file = self.selected_default
+        if not overwrite:
+            print('should be asking for save file name')
+            desired_file = fasta_lib.save_file(self.script_location, [('Text files', '*.txt')],
+                                               default_file=self.selected_default,
+                                               title_string='Specify a default species file name')
+        if desired_file:
             try:
-                os.chdir(save_path)
-
-                # Attempt to write data struct in byte form to defaults.pickle
+                # write default species list to file
                 items = self.tree_right.get_children()
                 databases = [self.tree_right.item(item)['values'] for item in items]
+                for database in databases:
+                    database[-1] = database[-1].rstrip(r"""\'"*""") # seem to accumulate EOL characters
+                
                 # Remove duplicates
                 db_set = set(tuple(x) for x in databases)
-                databases = [list(x) for x in db_set]
-                self.pickle_entries(databases)
-                # Re-import right tree
-                for row in self.tree_right.get_children():
-                    self.tree_right.delete(row)
-                self.data = self.unpickle_entries()
-                for database in self.data["Databases"]:
-                    self.tree_right.insert('', 'end', values=database)
+                databases = sorted([list(x) for x in db_set], key=lambda y: y[0]) # sort DBs by common name
 
-                self.update_status_bar("Databases saved to defaults_Ensembl.pickle")
+                with open(desired_file, "w") as defaults_txt:
+                    self.selected_default = desired_file
+                    for database in databases:
+                        defaults_txt.write("{}\n".format(database))
+
+                self.status_bar.config(text="Databases saved to species text file")
             except OSError:
-                messagebox.showwarning("Invalid Filename!",
-                                       "Cannot save defaults_Ensembl.pickle to selected folder!")
-                return None
-        else:
-            return None
+                messagebox.showwarning("Invalid Filename!", "Cannot save species list to selected folder!")
         
-    def import_defaults(self, initial=False):
+    def select_defaults_and_load(self):
+        """Let user browse to a defaults file and load the species."""
+        self.selected_default = fasta_lib.get_file(self.script_location,
+                                                   [('Text files', '*.txt')],
+                                                   'Select a default Ensembl species list file')
+        self.load_defaults()
+                        
+    def load_defaults(self, display=True):
         try:
-            if initial:
-                self.data = self.unpickle_entries()
-                # Load in entries from databases
-                databases = self.data["Databases"]
-                # Save cwd path for save_to_defaults()
-                self.update_status_bar("defaults_Ensembl.pickle imported.")
-            else:
-                self.script_location = filedialog.askopenfilename().rsplit("/", 1)[0] + "/"  
-                os.chdir(self.script_location)
-
-                self.data = self.unpickle_entries()
-                databases = self.data["Databases"]
-                self.update_status_bar("defaults_Ensembl.pickle imported.")
+            with open(self.selected_default, "r") as defaults_txt:
+                databases = defaults_txt.readlines()
+            self.status_bar.config(text="default species list imported.")
+                
         except FileNotFoundError:
             self.update_status_bar("No defaults imported/defaults could not be found")
             return None
@@ -440,48 +475,53 @@ class GUI:
             self.update_status_bar("No defaults imported/defaults could not be found")
             # print("If self.data is None, self.data hasn't been initialized yet: ", type(self.data))
             return None
-
         
         # Clear selected databases before importing
-        for row in self.tree_right.get_children():
-                self.tree_right.delete(row)
-    
-        for database in databases:
-            # Make a new zombie list to parse kingdom from species name
-            common_name = database[0]
-            latin_name = database[1]
-            tax_id = database[2]
-            e_a = database[3]
+        if display:
+            for row in self.tree_right.get_children():
+                    self.tree_right.delete(row)
 
-            clean_database = [common_name, latin_name, tax_id, e_a]
-            self.tree_right.insert('', 'end', values=clean_database)
+        loaded_databases = []    
+        for database in databases:
+            # load the right list from the defaults
+            database = database[1:-1] # trim square brackets
+            common_name = database.split(', ')[0][1:-1] # trim quotes
+            latin_name = database.split(', ')[1][1:-1] # trim quotes
+            tax_id = int(database.split(', ')[2])
+            e_a = database.split(', ')[3][1:-1]
+            e_a = e_a.rstrip(r"""'\"*""") # seem to get extra chracters to remove
+            loaded_databases.append([common_name, latin_name, tax_id, e_a])
+
+        loaded_databases = sorted(loaded_databases, key=lambda x: x[0]) # sort DBs by common name
+
+        if display:
+            for database in loaded_databases:
+                self.tree_right.insert('', 'end', values=database)
+
+        return loaded_databases
 
     def update_defaults(self):
         """If the entries in right tree do not match original defaults file, ask user to save updated list"""
-        tree_items = [self.tree_right.item(entry)['values'] for entry in self.tree_right.get_children()]
+        right_tree_items = [self.tree_right.item(entry)['values'] for entry in self.tree_right.get_children()]
 
-        # Get data from current defaults file
-        try:
-            os.chdir(self.script_location)
-            self.data = self.unpickle_entries()
-        except FileNotFoundError:
-            # print("First time defaults file has been created.")
-            self.pickle_entries([])
-
-        # Match current selected database to defaults
-        try:
-            if tree_items != self.data["Databases"]:
+        # Remove duplicates
+        db_set = set(tuple(x) for x in right_tree_items)
+        right_tree_items = sorted([list(x) for x in db_set], key=lambda y: y[0]) # sort DBs by common name
+                
+        # compare current right-side databases to stored defaults
+        if right_tree_items != self.load_defaults(display=False):
+            if os.path.exists(self.selected_default):
                 answer = messagebox.askyesno("Unsaved Progress",
-                                             "Database selections are different than defaults! Would you like to save?")
+                                             "Right species list differs from defaults! Would you like to save?")
                 if answer:
-                    self.quit_save_state = "triggered"
-                    self.save_to_defaults()
-        except TypeError:  # Triggers when self.data hasn't been initialized yet
-            answer = messagebox.askyesno("Unsaved Progress",
-                                         "Would you like to save currently selected databases to defaults?")
-            if answer:
-                self.quit_save_state = "triggered"
-                self.save_to_defaults()
+                    self.quit_save_state = True
+                    self.save_defaults(overwrite=True)
+            else:              
+                answer = messagebox.askyesno("Unsaved Progress",
+                                             "Save right species list for next time?")
+                if answer:
+                    self.quit_save_state = True
+                    self.save_defaults(overwrite=True)
             
     def download_databases(self):
         """Fetches the database files for the selected species."""
@@ -500,7 +540,7 @@ class GUI:
             return None
 
         # Make a separate folder to contain all files
-        ensembl_dir_name = r"Ensembl_{}".format(self.date)
+        ensembl_dir_name = r"Ensembl_v{}".format(self.release)
         ensembl_dir_path = os.path.join(self.abs_dl_path, ensembl_dir_name)
         try:
             os.mkdir(ensembl_dir_path)
@@ -508,7 +548,6 @@ class GUI:
             pass
         os.chdir(ensembl_dir_path)
 
-        ## TODO: Create new program flow for Ensembl
         # Grab entries from right tree view
         download_taxid = [self.tree_right.item(entry)['values'][2] for entry in self.tree_right.get_children()]
         set_download_taxid = list(set(download_taxid))
@@ -558,7 +597,7 @@ class GUI:
 
         # chdir into correct folder and make sure all file paths are set up correctly
         contam_location = self.script_location
-        ensembl_dir_name = r"Ensembl_{}".format(self.date)
+        ensembl_dir_name = r"Ensembl_v{}".format(self.release)
         os.chdir(os.path.join(self.abs_dl_path, ensembl_dir_name))
         
         # Add forward/reverse/contams, as specified by checkboxes
@@ -702,11 +741,11 @@ class GUI:
         removeButton.pack()
         removeButton.config(width=button_width)
         
-        saveButton = Button(buttonFrame, text="Save Defaults", command=self.save_to_defaults)  
+        saveButton = Button(buttonFrame, text="Save Defaults", command=self.save_defaults)  
         saveButton.pack()
         saveButton.config(width=button_width)
 
-        importButton = Button(buttonFrame, text="Import Defaults", command=self.import_defaults)
+        importButton = Button(buttonFrame, text="Import Defaults", command=self.load_defaults)
         importButton.pack()
         importButton.config(width=button_width)
         
@@ -758,7 +797,7 @@ class GUI:
         
         # open the FTP connection
         self.login()
-        self.import_defaults(True)  # initial import of defaults
+        self.load_defaults(True)  # initial import of defaults
         self.createRawTable()
         self.parseRawTable()  # Create Entry objects
         self.root.protocol("WM_DELETE_WINDOW", self.quit_gui)  # Override window close event
@@ -769,7 +808,7 @@ class GUI:
 if __name__ == '__main__':
     # Global Variables
     FTP_URL = 'ftp.ensembl.org'
-    REF_PROT_PATH = '/pub/current_fasta'
+    PROT_PATH = '/pub/current_fasta'
     HEADERS = ["COMMON NAME", "LATIN NAME", "TAX ID", "ENSEMBL ASSEMBLY"]
     BANNED = ["README", "CHECKSUMS", "abinitio.fa.gz"]
     SCRIPT_LOCATION = os.path.dirname(os.path.realpath(__file__))
@@ -780,5 +819,5 @@ if __name__ == '__main__':
     DATA = RESPONSE.read()
     TEXT = DATA.decode('utf-8')
     
-    gui = GUI(FTP_URL, REF_PROT_PATH, TEXT, HEADERS, BANNED, SCRIPT_LOCATION)
+    gui = GUI(FTP_URL, PROT_PATH, TEXT, HEADERS, BANNED, SCRIPT_LOCATION)
     gui.create_gui()

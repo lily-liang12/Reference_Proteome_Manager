@@ -217,9 +217,9 @@ class ReadMeEntry:
 class GUI:
     """Main GUI class for application.
     """
-    def __init__(self, URL, ref_prot_path, kingdom_paths, headers, banned_list, script_path):
+    def __init__(self, url, ref_prot_path, kingdom_paths, headers, banned_list, script_path):
         """Create object and set some state attributes."""
-        self.url = URL                          # Url of UniProt FTP site
+        self.url = url                          # Url of UniProt FTP site
         self.ftp = None                         # FTP object (set in login method)
         self.ref_prot_path = ref_prot_path      # Specifies top level directory of the Uniprot ftp database
         self.kingdom_paths = kingdom_paths      # List of directory names where files are located (kingdoms)
@@ -267,9 +267,9 @@ class GUI:
         date = self.data["Date"]
         entries = self.data["Entries"]
 
-        # check the current REAADME file and see if pickled entries are current
+        # check the current README file and see if pickled entries are current
         self.login()
-        self.ftp.cwd(self.ref_prot_path)  # move into README file
+        self.ftp.cwd(self.ref_prot_path)  # move into README file location
         listing = []
         self.ftp.retrlines('RETR README', listing.append)
 
@@ -553,7 +553,7 @@ class GUI:
             species_name = species_name.rstrip(r"""'\"*""")
             loaded_databases.append([tax, canonical, additional, kingdom, species_name])
 
-        loaded_databases = sorted(loaded_databases, key=lambda x: int(x[0])) # sort DBs by taxon
+        loaded_databases = sorted(loaded_databases, key=lambda x: x[0]) # sort DBs by taxon
 
         if display:
             for database in loaded_databases: 
