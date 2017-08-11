@@ -72,7 +72,10 @@ def parse_ensembl_header_line(line, all_tags):
     
     return parsed['description:'] + extra
 
-def main(fasta_file):
+def main(fasta_file, up_one=False):
+    """Processes one Ensembl fasta file - reformats description lines, checks things.
+    up_one determines where the new file is written.
+    """
     # create the new database name
     original_fasta_file = os.path.basename(fasta_file)
     new_fasta_file = original_fasta_file.replace('.fasta', '_fixed.fasta')
@@ -84,7 +87,11 @@ def main(fasta_file):
         return False
     if new_fasta_file.endswith('.gz'):
         new_fasta_file = new_fasta_file[:-3]
-    new_fasta_file = os.path.join(os.path.dirname(fasta_file), new_fasta_file)
+    if up_one:
+        folder_name = os.path.dirname(os.path.dirname(fasta_file))
+    else:
+        folder_name = os.path.dirname(fasta_file)
+    new_fasta_file = os.path.join(folder_name, new_fasta_file)
 
     # initializations
     proteins = []

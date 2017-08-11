@@ -593,7 +593,7 @@ class GUI:
         """Uncompresses FASTA file, reformats descriptions, and does some analysis.
         """
         # analyze and fix descriptions (also uncompresses the file)
-        new_fasta_file = Ensembl_fixer.main(file_location)
+        new_fasta_file = Ensembl_fixer.main(file_location, up_one=True)
 
         # chdir into correct folder and make sure all file paths are set up correctly
         contam_location = self.script_location
@@ -663,9 +663,9 @@ class GUI:
 
         # Additiona database types Frame
         ## Main Frame
-        revFrame = LabelFrame(optionFrame, text="Additional Database Types")
+        revFrame = LabelFrame(optionFrame, text="Additional Database Processing")
         revFrame.pack(fill=BOTH, expand=YES, padx=5, pady=5)
-        self.reverse_contams = Checkboxes(revFrame, ["Decoy Database(s)", "Contaminants"])
+        self.reverse_contams = Checkboxes(revFrame, ["Target/Decoy Databases", "Add Contaminants"])
         self.reverse_contams.pack(side = LEFT, fill=X, padx=5, pady=5)
         
         # Search Window
