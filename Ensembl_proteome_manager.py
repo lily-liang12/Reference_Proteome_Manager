@@ -140,17 +140,17 @@ class GUI:
         except:
             pass # we will get error if there is no FTP connection to close
         
-    def cleanCommonName(self, name):
+    def clean_common_name(self, name):
         p = re.compile(r"alt=\"(.*?)\"")
         m = p.search(name)
         return m.groups()[0]
 
-    def cleanLatinName(self, name):
+    def clean_latin_name(self, name):
         p = re.compile(r"<i\b[^>]*>(.*?)</i>")
         m = p.search(name)
         return m.groups()[0]
 
-    def createRawTable(self):
+    def create_raw_table(self):
         # Setup html file to find required information 
         # Find start and end of h3 header block
         TEXT = self.text
@@ -162,9 +162,9 @@ class GUI:
         # Text Block that needs to be parsed
         self.raw_table = TEXT[start_ind:end_ind]
 
-    def loadAllEntries(self):
+    def load_all_entries(self):
         """Loads Ensembl proteome entries from pickle file.
-        If file does not exist or file is out-of-date, return False.
+        If file does not exist or file is out-of-date, returns False.
         """
         # get the ccontents of current_README file
         self.login()
@@ -198,9 +198,9 @@ class GUI:
             self.release = release  # set this to the current release version
             return False
 
-    def parseRawTable(self):
+    def parse_raw_table(self):
         """Gets Ensembl proteome entries. Looks for pickle file first and checks if current, if not fetches from web."""
-        if self.loadAllEntries():
+        if self.load_all_entries():
             return  # pickled entries were read in and were current            
         else:
             print('fetching data from web')
@@ -219,8 +219,8 @@ class GUI:
                     for path in animal[i]:
                         if path:
                             animal[i] = path
-                common_name = self.cleanCommonName(animal[0])
-                latin_name = self.cleanLatinName(animal[1])
+                common_name = self.clean_common_name(animal[0])
+                latin_name = self.clean_latin_name(animal[1])
                 tax_id = animal[2]
                 if not str(tax_id).isdigit():  # In case tax_id is something other than a number
                     tax_id = "000"
@@ -240,13 +240,13 @@ class GUI:
                 animal_obj.ftp_file_path = download_path
                 self.animal_list.append(animal_obj)
                 
-            self.removeInvalidAnimals()
-            self.getDate()
+            self.remove_invalid_animals()
+            self.get_date()
 
             # save the fetched species information
             self.pickle_entries()
 
-    def removeInvalidAnimals(self):
+    def remove_invalid_animals(self):
         self.login()
         # If we cant find the animal directory, remove it from animal list
         for animal in self.animal_list:
@@ -255,7 +255,7 @@ class GUI:
             except ftplib.error_perm:
                 self.animal_list.remove(animal)
 
-    def getDate(self):
+    def get_date(self):
         self.login()
         # Just hope that this animal actually exists in ftp database, because aardvark doesn't
         self.ftp.cwd(self.animal_list[1].ftp_file_path)  
@@ -275,7 +275,7 @@ class GUI:
         year = modifiedTime.split()[2]
         self.date = "{}.{}".format(month, year)
         
-    def filterEntries(self):
+    def filter_entries(self):
         """Checks values search fields, filters all animals associated with
         taxon numbers, and/or species names, then returns a list with all matching entries.
         """
@@ -295,7 +295,7 @@ class GUI:
         """Calls relevant methods to create filtered lists, then finds intersection of the lists, 
         and outputs relevant info to user
         """
-        self.filterEntries()
+        self.filter_entries()
 
         if len(self.selected_entries) == 0:
             # Ask if user wants all entries shown if no filters are selected
@@ -549,11 +549,11 @@ class GUI:
                 self.update_status_bar("Downloading {} file".format(fname))
                 self.ftp.retrbinary('RETR {}'.format(fname), open('{}'.format(fname), 'wb').write)
                 print("{} is done downloading".format(fname))
-                self.process_fasta_files(os.path.join(ensembl_dir_path, entry.folder_name, fname), entry)
+                self.make_fasta_files(os.path.join(ensembl_dir_path, entry.folder_name, fname), entry)
 
         messagebox.showinfo("All Downloads Completed!", "Downloads Finished!")
 
-    def process_fasta_files(self, file_location, entry):
+    def make_fasta_files(self, file_location, entry):
         """Uncompresses FASTA file, reformats descriptions, and does some analysis.
         """
         # analyze and fix descriptions (also uncompresses the file)
@@ -565,9 +565,9 @@ class GUI:
         os.chdir(os.path.join(self.abs_dl_path, ensembl_dir_name))
         
         # Add forward/reverse/contams, as specified by checkboxes
-        self.addRevSequences(new_fasta_file, contam_location)
+        self.process_databases(new_fasta_file, contam_location)
 
-    def addRevSequences(self, fasta_file, contam_location):
+    def process_databases(self, fasta_file, contam_location):
         """Gets selection value from radiobuttons and then passes those values to imported fasta_reverse function.
         More documentation on how fasta_reverse works can be found in the reverse_fasta.py file.
         """
@@ -762,8 +762,8 @@ class GUI:
         # open the FTP connection
         self.login()
         self.load_defaults(True)  # initial import of defaults
-        self.createRawTable()
-        self.parseRawTable()  # Create Entry objects
+        self.create_raw_table()
+        self.parse_raw_table()  # Create Entry objects
         self.root.protocol("WM_DELETE_WINDOW", self.quit_gui)  # Override window close event
         self.get_filtered_proteome_list()   # show the full left list to start
         self.root.mainloop()
