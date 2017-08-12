@@ -42,7 +42,6 @@ from tkinter import filedialog
 import os
 import sys
 import ftplib
-##import datetime
 import re
 import urllib.request
 import pickle
@@ -51,15 +50,15 @@ from datetime import datetime
 # Imports dependent on other files
 # This python file only uses built-in modules, no external downloads required
 try:
-    import fasta_lib_Py3 as fasta_lib
+    import fasta_lib
     import Ensembl_fixer
-    import reverse_fasta as add_rev
+    import reverse_fasta
 except ImportError:
     print("Could not import all files.")
     sys.exit()
 
 # Helper Classes
-class Checkboxes(Frame):
+class CheckBoxes(Frame):
     """Creates and packs a set of checkboxes."""
     def __init__(self, parent=None, checkboxes=[], side=LEFT):
         """Constructor creates the checkboxes in the checkboxes list."""
@@ -86,10 +85,12 @@ class Checkboxes(Frame):
             var.set(0)
             
 class AnimalEntry:
+    """Container for Ensembl proteome entries."""
     def __init__(self, c_n, l_n, taxid, e_a, acc, g_m, v_d, r_d, p_a):
+        """Basic constructor - sets most attributes."""
         self.common_name = c_n          # Species Common Name (string)
         self.latin_name = l_n           # Species Latin Name (string)
-        self.taxID = taxid              # Taxonomy ID Number (int)
+        self.tax_ID = taxid              # Taxonomy ID Number (int)
         self.ensembl_assembly = e_a     # Ensembl assembly (string?)
         self.accession = acc            # 
         self.genebuild_method = g_m     # 
@@ -98,43 +99,6 @@ class AnimalEntry:
         self.pre_assembly = p_a         #
         self.folder_name = ""           # Folder Name for each species
         self.ftp_file_path = ""         # Species ftp download path
-
-    # Define getter/setter methods (Can include more as necessary)
-    def getCommonName(self):
-        return self.common_name
-    
-    def setCommonName(self, c_n):
-        self.common_name = c_n
-        
-    def getLatinName(self):
-        return self.latin_name
-    
-    def setLatinName(self,l_n):
-        self.latin_name = l_n
-        
-    def getTaxID(self,):
-        return self.taxID
-    
-    def setTaxID(self, taxid):
-        self.taxID = taxid
-        
-    def getEnsemblAssembly(self):
-        return self.ensembl_assembly
-    
-    def setEnsemblAssembly(self, e_a):
-        self.ensembl_assembly = e_a
-        
-    def getFolderName(self):
-        return self.folder_name
-    
-    def setFolderName(self, folder_name):
-        self.folder_name = folder_name
-        
-    def getFTPFile(self):
-        return self.ftp_file_path
-    
-    def setFTPFile(self, file_path):
-        self.ftp_file_path = file_path
 
 # Build GUI
 class GUI:
@@ -266,14 +230,14 @@ class GUI:
                                          animal[5], animal[6], animal[7], animal[8])
 
                 # Set animal object's folder name and ftp download path
-                folder_name = "{}_{}_{}".format(animal_obj.getCommonName(), animal_obj.getLatinName(), animal_obj.getTaxID())
+                folder_name = "{}_{}_{}".format(animal_obj.common_name, animal_obj.latin_name, animal_obj.tax_ID)
                 folder_name = folder_name.replace(" ", "-")
-                animal_obj.setFolderName(folder_name)
+                animal_obj.folder_name = folder_name
                 
                 download_latin_name = latin_name.replace(" ", "_").lower()
                 # download_path = os.path.join(self.ensembl_prot_path, download_latin_name, "pep", "")
                 download_path = r"{}/{}/pep/".format(self.ensembl_prot_path, download_latin_name)
-                animal_obj.setFTPFile(download_path)
+                animal_obj.ftp_file_path = download_path
                 self.animal_list.append(animal_obj)
                 
             self.removeInvalidAnimals()
@@ -287,14 +251,14 @@ class GUI:
         # If we cant find the animal directory, remove it from animal list
         for animal in self.animal_list:
             try:
-                self.ftp.cwd(animal.getFTPFile())
+                self.ftp.cwd(animal.ftp_file_path)
             except ftplib.error_perm:
                 self.animal_list.remove(animal)
 
     def getDate(self):
         self.login()
         # Just hope that this animal actually exists in ftp database, because aardvark doesn't
-        self.ftp.cwd(self.animal_list[1].getFTPFile())  
+        self.ftp.cwd(self.animal_list[1].ftp_file_path)  
         
         # Create a list of all files in each species folder
         listing = []
@@ -320,12 +284,12 @@ class GUI:
         tax_entry = self.searchTax.get()
 
         # filter on taxonomy number substring
-        self.selected_entries = [entry for entry in self.animal_list if tax_entry in entry.getTaxID()]
+        self.selected_entries = [entry for entry in self.animal_list if tax_entry in entry.tax_ID]
 
         # filter on species name substring
         self.selected_entries = [entry for entry in self.selected_entries
-                                 if species_entry in entry.getCommonName().lower()
-                                 or species_entry in entry.getLatinName().lower()]
+                                 if species_entry in entry.common_name.lower()
+                                 or species_entry in entry.latin_name.lower()]
         
     def get_filtered_proteome_list(self):
         """Calls relevant methods to create filtered lists, then finds intersection of the lists, 
@@ -343,8 +307,8 @@ class GUI:
                 return None
                     
         # Only show relevant info to user in entries
-        entries = [[entry.getCommonName(), entry.getLatinName(),
-                    entry.getTaxID(), entry.getEnsemblAssembly()]
+        entries = [[entry.common_name, entry.latin_name,
+                    entry.tax_ID, entry.ensembl_assembly]
                     for entry in self.selected_entries]
 
         # clear entries before importing
@@ -556,18 +520,18 @@ class GUI:
             
         # Create a list of selected animal objects from list of tax id's selected
         download_entries = [entry for taxid in download_taxid for entry in self.animal_list
-                            if int(taxid) == int(entry.getTaxID())]
+                            if int(taxid) == int(entry.tax_ID)]
 
         # Change ftp directory for each species
         for entry in download_entries:
-            self.ftp.cwd(entry.getFTPFile())
+            self.ftp.cwd(entry.ftp_file_path)
 
             # Create a folder for each species
             try:
-                os.mkdir(os.path.join(ensembl_dir_path, entry.getFolderName()))
-                os.chdir(os.path.join(ensembl_dir_path, entry.getFolderName()))
+                os.mkdir(os.path.join(ensembl_dir_path, entry.folder_name))
+                os.chdir(os.path.join(ensembl_dir_path, entry.folder_name))
             except FileExistsError:
-                os.chdir(os.path.join(ensembl_dir_path, entry.getFolderName()))
+                os.chdir(os.path.join(ensembl_dir_path, entry.folder_name))
                 
             # Create a list of all files in each species folder
             listing = []
@@ -585,7 +549,7 @@ class GUI:
                 self.update_status_bar("Downloading {} file".format(fname))
                 self.ftp.retrbinary('RETR {}'.format(fname), open('{}'.format(fname), 'wb').write)
                 print("{} is done downloading".format(fname))
-                self.process_fasta_files(os.path.join(ensembl_dir_path, entry.getFolderName(), fname), entry)
+                self.process_fasta_files(os.path.join(ensembl_dir_path, entry.folder_name, fname), entry)
 
         messagebox.showinfo("All Downloads Completed!", "Downloads Finished!")
 
@@ -623,7 +587,7 @@ class GUI:
             contam_location = os.path.join(contam_location, "block")  # Prevent script from finding contams file
 
         if contams or decoy:        
-            add_rev.fasta_reverse(fasta_file, forward, reverse, both, contam_path=contam_location)
+            reverse_fasta.main(fasta_file, forward, reverse, both, contam_path=contam_location)
         
     def banned_file(self, fname):
         """False if fname in banned list."""
@@ -665,7 +629,7 @@ class GUI:
         ## Main Frame
         revFrame = LabelFrame(optionFrame, text="Additional Database Processing")
         revFrame.pack(fill=BOTH, expand=YES, padx=5, pady=5)
-        self.reverse_contams = Checkboxes(revFrame, ["Target/Decoy Databases", "Add Contaminants"])
+        self.reverse_contams = CheckBoxes(revFrame, ["Target/Decoy Databases", "Add Contaminants"])
         self.reverse_contams.pack(side = LEFT, fill=X, padx=5, pady=5)
         
         # Search Window
