@@ -127,6 +127,7 @@ class GUI:
         self.illegal_characters = r"[\\#%&{}/<>*?:]"
 
     # Helper Class Functions
+    # FTP support
     def login(self):
         """Open an FTP connection and login."""
         self.ftp = ftplib.FTP()
@@ -139,7 +140,8 @@ class GUI:
             self.ftp.quit()
         except:
             pass # we will get error if there is no FTP connection to close
-        
+
+    # some parsing support        
     def clean_common_name(self, name):
         p = re.compile(r"alt=\"(.*?)\"")
         m = p.search(name)
@@ -162,6 +164,7 @@ class GUI:
         # Text Block that needs to be parsed
         self.raw_table = TEXT[start_ind:end_ind]
 
+    # Ensembl Animal Entry support
     def load_all_entries(self):
         """Loads Ensembl proteome entries from pickle file.
         If file does not exist or file is out-of-date, returns False.
@@ -275,6 +278,25 @@ class GUI:
         year = modifiedTime.split()[2]
         self.date = "{}.{}".format(month, year)
         
+    def pickle_entries(self):
+        """Saves full left display list to make subsequent launches faster."""
+        text = {"Date": self.date, "Release": self.release, "Entries": self.animal_list}
+
+        # make sure we are in the location with the script
+        try:
+            os.chdir(self.script_location)
+        except OSError:
+            print("OSError occurred during pickling. Cwd: {}".format(os.getcwd()))
+
+        with open('Ensembl_current_release.pickle', 'wb') as file:
+            pickle.dump(text, file)
+
+    def unpickle_entries(self):
+        """Loads saved full left display list of species."""
+        with open('Ensembl_current_release.pickle', 'rb') as file:
+            return pickle.load(file)
+
+    # list management functions
     def filter_entries(self):
         """Checks values search fields, filters all animals associated with
         taxon numbers, and/or species names, then returns a list with all matching entries.
@@ -369,32 +391,17 @@ class GUI:
             self.tree_right.insert('', 'end', values=selected_copy['values'])
         self.update_status_bar("{} added".format(selected_copy['values'][0]))  # Species name should be first
 
-    def pickle_entries(self):
-        """Saves full left display list to make subsequent launches faster."""
-        text = {"Date": self.date, "Release": self.release, "Entries": self.animal_list}
-
-        # make sure we are in the location with the script
-        try:
-            os.chdir(self.script_location)
-        except OSError:
-            print("OSError occurred during pickling. Cwd: {}".format(os.getcwd()))
-
-        with open('Ensembl_current_release.pickle', 'wb') as file:
-            pickle.dump(text, file)
-
-    def unpickle_entries(self):
-        """Loads saved full left display list of species."""
-        with open('Ensembl_current_release.pickle', 'rb') as file:
-            return pickle.load(file)
-
+    # loading and saving species list function
     def save_defaults(self, overwrite=False):
         """Saves species in the right display box to a default species text file"""
         desired_file = self.selected_default
+        print('desired_file before dialog:', desired_file)
         if not overwrite:
             print('should be asking for save file name')
             desired_file = fasta_lib.save_file(self.script_location, [('Text files', '*.txt')],
-                                               default_file=self.selected_default,
+                                               default_file=os.path.split(self.selected_default)[1],
                                                title_string='Specify a default species file name')
+            print('desired_file after didalog:', desired_file)
         if desired_file:
             try:
                 # write default species list to file
