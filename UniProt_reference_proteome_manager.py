@@ -39,19 +39,18 @@ import ftplib
 import datetime
 import re
 import pickle
-from pathlib import PureWindowsPath
 
 # Imports dependent on other files
 # This script only uses built-in modules, no external downloads required
 try:
-    import fasta_lib_Py3 as fasta_lib
-    import reverse_fasta as add_rev
+    import fasta_lib
+    import reverse_fasta
 except ImportError:
     print("Could not import all files.")
     sys.exit("Imports failed!")
 
 # Helper Classes
-class Checkboxes(Frame):
+class CheckBoxes(Frame):
     """Creates and packs a set of checkboxes.
     """
     def __init__(self, parent=None, checkboxes=[], side=LEFT):
@@ -102,11 +101,11 @@ class ReadMeEntry:
         # List of characters that cannot be in folder names
         self.illegal_pattern = r"[\\#%&{}/<>*?:]"
 
-        self.setAttributes(line_entry)  # Populate object attributes
-        self.makeShortName()            # Makes some shorter species names
+        self.set_attributes(line_entry)  # Populate object attributes
+        self.make_short_name()            # Makes some shorter species names
 
     # Parse README table line
-    def setAttributes(self, line):
+    def set_attributes(self, line):
         """Parse attributes from table line."""
         m = self.parser.match(line)
 
@@ -124,7 +123,7 @@ class ReadMeEntry:
         self.gene2acc = groups[5]
         self.species_name = groups[6]
 
-    def makeShortName(self):
+    def make_short_name(self):
         """To get a shorter species name to add to download filenames.
 
         Pattern is one or more words with capital first letter and one
@@ -136,7 +135,7 @@ class ReadMeEntry:
             if self.short_name.endswith('_sp'):
                 self.short_name = self.short_name[:-3]
                 
-    def makeFolderName(self, date, dash=True):
+    def make_folder_name(self, date, dash=True):
         """ This function will remove any characters from the species
         name that are in the remove characters list, and make a folder name
         with date, proteome ID, and fixed species name.
@@ -148,55 +147,6 @@ class ReadMeEntry:
 
         # Make the local download folder name
         self.download_folder_name = '_'.join([date, self.proteome_ID, fixed_name])
-
-    # Define all getter/setter methods
-    def getProtID(self):
-        return self.proteome_ID
-    
-    def setProtID(self, protID):
-        self.proteome_ID = protID
-        
-    def getTaxID(self):
-        return self.tax_ID
-    
-    def setTaxID(self, taxID):
-        self.tax_ID = taxID
-        
-    def getOscode(self):
-        return self.oscode
-    
-    def setOscode(self, oscode):
-        self.oscode = oscode
-        
-    def getMainFasta(self):
-        return self.main_fasta
-    
-    def setMainFasta(self, main_fasta):
-        self.main_fasta = main_fasta
-        
-    def getAdditionalFasta(self):
-        return self.additional_fasta
-    
-    def setAdditionalFasta(self, additional_fasta):
-        self.additional_fasta = additional_fasta
-        
-    def getGene2Acc(self):
-        return self.gene2acc
-    
-    def setGene2Acc(self, gene2acc):
-        self.gene2acc = gene2acc
-        
-    def getSpeciesName(self):
-        return self.species_name
-    
-    def setSpeciesName(self, species_name):
-        self.species_name = species_name
-        
-    def getKingdom(self):
-        return self.kingdom
-    
-    def setKingdom(self, kingdom):
-        self.kingdom = kingdom
 
     def _snoop(self):
         """Diagnostic print of attributes."""
@@ -254,7 +204,7 @@ class GUI:
             pass # Catch error if no FTP connection to close (already timed out)
 
     # ReadMeEntry support         
-    def loadAllEntries(self):
+    def load_all_entries(self):
         """Loads reference proteome entries from pickle file.
         If file does not exist or file is out-of-date, return False.
         """
@@ -307,10 +257,10 @@ class GUI:
         with open('UniProt_current_release.pickle', 'rb') as file:
             return pickle.load(file)
 
-    def parseReadMe(self):
+    def parse_README(self):
         """Fetches the README file and parses the table in "ReadMeEntry" objects."""
         # Try to load entry objects from pickle file unless first time running, then user needs to save defaults
-        if self.loadAllEntries():
+        if self.load_all_entries():
             return     # exits here if pickled entries were OK
         else:
             # fetch and parse README
@@ -376,7 +326,7 @@ class GUI:
         return
 
     # list management functions
-    def filterEntries(self):
+    def filter_entries(self):
         """ Checks values from checkboxes and search fields, filters all proteome IDs associated with
         selected kingdoms, taxon numbers, and/or species names, then returns a list with all matching entries.
         """
@@ -393,15 +343,15 @@ class GUI:
         self.selected_entries = [entry for entry in self.all_entries if entry.kingdom in self.kingdom_selections]
 
         # Filter on taxonomy number substring
-        self.selected_entries = [entry for entry in self.selected_entries if tax_entry in entry.getTaxID()]
+        self.selected_entries = [entry for entry in self.selected_entries if tax_entry in entry.tax_ID]
 
         # Filter on species name substring
-        self.selected_entries = [entry for entry in self.selected_entries if species_entry in entry.getSpeciesName().lower()]
+        self.selected_entries = [entry for entry in self.selected_entries if species_entry in entry.species_name.lower()]
 
     def get_filtered_proteome_list(self):
         """Filters reference proteome list by user specified criteria for left side display box.
         """
-        self.filterEntries()        
+        self.filter_entries()        
 
         if len(self.selected_entries) == 0:
             # Ask if user wants all entries shown if no filters are selected
@@ -413,8 +363,8 @@ class GUI:
                 return None
                     
         # Only show relevant info to user in entries
-        entries = [[entry.getTaxID(), int(entry.getMainFasta()), int(entry.getAdditionalFasta()),
-                    entry.getKingdom(), entry.getSpeciesName()]
+        entries = [[entry.tax_ID, int(entry.main_fasta), int(entry.additional_fasta),
+                    entry.kingdom, entry.species_name]
                     for entry in self.selected_entries]
 
         # Clear entries before importing
@@ -585,9 +535,9 @@ class GUI:
                     self.save_defaults(overwrite=True)
 
     # FASTA file download and processing functions        
-    def addRevSequences(self, fasta_file, contam_location):
-        """Gets selection value from radiobuttons and then passes those values to imported fasta_reverse function.
-        More documentation on how fasta_reverse works can be found in the reverse_fasta.py file.
+    def database_processing(self, fasta_file, contam_location):
+        """Gets selection value from radiobuttons and then passes those values to imported reverse_fasta main function.
+        More documentation on how reverse_fasta works can be found in the reverse_fasta.py file.
         """
         reverse_values = list(self.reverse_contams.get_state())
         # Initially set everything to false
@@ -605,7 +555,7 @@ class GUI:
             contam_location = os.path.join(contam_location, "block")  # Prevent script from finding contams file
 
         if contams or decoy:        
-            add_rev.fasta_reverse(fasta_file, forward, reverse, both, contam_path=contam_location)
+            reverse_fasta.main(fasta_file, forward, reverse, both, contam_path=contam_location)
             
     def download_databases(self):
         """Fetches the database files for the selected species."""
@@ -641,7 +591,7 @@ class GUI:
         download_entries = [entry for entry in self.all_entries if int(entry.tax_ID) in set_tax_id_list]
 
         # Add normalized folder name attribute
-        [entry.makeFolderName(self.date) for entry in download_entries]
+        [entry.make_folder_name(self.date) for entry in download_entries]
 
         for entry in download_entries:
             # Move to the FTP site branch where files are located
@@ -670,7 +620,7 @@ class GUI:
                 self.ftp.retrbinary('RETR {}'.format(file), open('{}'.format(file), 'wb').write)
                 print("{} is done downloading".format(file))
 
-            self.process_fasta_files(uniprot_dir_path, entry)
+            self.make_fasta_files(uniprot_dir_path, entry)
 
         messagebox.showinfo("All Downloads Completed!", "Downloads Finished!")
 
@@ -682,7 +632,7 @@ class GUI:
                 skip = True
         return skip
 
-    def process_fasta_files(self, uniprot_dir_path, entry):
+    def make_fasta_files(self, uniprot_dir_path, entry):
         """Uncompresses canonical FASTA file and does some analysis. Also
         combines fasta and additional fasta files with decompression.
         """
@@ -746,7 +696,7 @@ class GUI:
         
         # Add forward/reverse/contams
         for file in combined_files:
-            self.addRevSequences(file, self.script_path) # assumes contams FASTA file in location with script
+            self.database_processing(file, self.script_path) # assumes contams FASTA file in location with script
                         
     def update_status_bar(self, _text):
         """Updates status bar with new text"""
@@ -782,7 +732,7 @@ class GUI:
         kingdomFrame.pack(side=TOP, fill=BOTH, expand=YES, padx=5, pady=5)
 
         ## Generate checkboxes
-        self.checkboxes = Checkboxes(kingdomFrame, self.kingdom_paths)
+        self.checkboxes = CheckBoxes(kingdomFrame, self.kingdom_paths)
         self.checkboxes.pack(side=LEFT, fill=X)
         self.checkboxes.check_all()
 
@@ -811,7 +761,7 @@ class GUI:
         # Checkboxes for contams and/or decoy databases
         addSeqFrame = LabelFrame(optionFrame, text="Additional Database Processing")
         addSeqFrame.pack(fill=X, padx=5, pady=5)
-        self.reverse_contams = Checkboxes(addSeqFrame, ["Target/Decoy Databases", "Add Contaminants"])
+        self.reverse_contams = CheckBoxes(addSeqFrame, ["Target/Decoy Databases", "Add Contaminants"])
         self.reverse_contams.pack(side = LEFT, fill=X, padx=5, pady=5)
 
         ## Show filtered list button and reset filters button
@@ -920,7 +870,7 @@ class GUI:
         
         # open the FTP connection
         self.login()
-        self.parseReadMe()      # Create Entry objects if there are no entry objects 
+        self.parse_README()      # Create Entry objects if there are no entry objects 
         self.load_defaults()  # Initial import of defaults
         self.root.protocol("WM_DELETE_WINDOW", self.quit_gui)  # Override window close event
         self.get_filtered_proteome_list()   # show the full left list to start

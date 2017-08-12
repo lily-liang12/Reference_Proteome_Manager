@@ -40,7 +40,7 @@ MAKE_REVERSE = False
 MAKE_BOTH = True
 
 
-def fasta_reverse(fasta_file, forward=False, reverse=False, both=True, log_obj=None, contam_path=""):
+def main(fasta_file, forward=False, reverse=False, both=True, log_obj=None, contam_path=""):
     """Adds contaminants and reverses entries for a FASTA protein database.
 
     Call with single fasta file name.
@@ -213,7 +213,7 @@ if __name__ == '__main__':
     os.chdir('.')   # set location to where script lives - the contaminants should be there
     for fasta_file in fasta_files:
         try:
-            fasta_reverse(fasta_file, forward, reverse, both)
+            main(fasta_file, forward, reverse, both)
         except IOError:   # FastaReader class raises exception if file not found
             print('...WARNING: %s not found' % fasta_file)
             pass
