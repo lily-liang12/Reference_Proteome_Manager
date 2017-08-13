@@ -32,7 +32,7 @@ Ph: 503-494-8200, FAX: 503-494-4729, Email: techmgmt@ohsu.edu.
 import os
 import sys
 import argparse
-import fasta_lib_Py3 as fasta_lib
+import fasta_lib
 
 # flags to make different output databases
 MAKE_FORWARD = True
@@ -49,6 +49,9 @@ def main(fasta_file, forward=False, reverse=False, both=True, log_obj=None, cont
     if "both", make concatenated target/decoy with contaminants.
     """
     decoy_string = 'REV_'   # the string to denote decoy sequences
+    ###################################### Change contaminants file name here:
+    CONTAMS = 'Thermo_contams_fixed.fasta'
+    ######################################
     
     # open the "forward" and "reversed" output files
     if fasta_file.lower().endswith('.gz'):
@@ -78,15 +81,15 @@ def main(fasta_file, forward=False, reverse=False, both=True, log_obj=None, cont
     # If no contam file path provided, search for it in current directory
     _file = None
     if not contam_path:
-        if os.path.exists('all_contams_fixed.fasta'):
-            _file = 'all_contams_fixed.fasta'
+        if os.path.exists(CONTAMS):
+            _file = CONTAMS
         else:
             path = os.path.split(fasta_file)[0]
-            if os.path.exists(os.path.join(path, 'all_contams_fixed.fasta')):
-                _file = os.path.join(path, 'all_contams_fixed.fasta')
+            if os.path.exists(os.path.join(path, CONTAMS)):
+                _file = os.path.join(path, CONTAMS)
     else:
-        if os.path.exists(os.path.join(contam_path, 'all_contams_fixed.fasta')):
-            _file = os.path.join(contam_path, 'all_contams_fixed.fasta')
+        if os.path.exists(os.path.join(contam_path, CONTAMS)):
+            _file = os.path.join(contam_path, CONTAMS)
         
     # create reader and add contaminants (if contams file was found)
     if _file:

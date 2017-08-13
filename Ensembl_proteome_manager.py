@@ -90,7 +90,7 @@ class AnimalEntry:
         """Basic constructor - sets most attributes."""
         self.common_name = c_n          # Species Common Name (string)
         self.latin_name = l_n           # Species Latin Name (string)
-        self.tax_ID = taxid              # Taxonomy ID Number (int)
+        self.tax_ID = taxid             # Taxonomy ID Number (int)
         self.ensembl_assembly = e_a     # Ensembl assembly (string?)
         self.accession = acc            # 
         self.genebuild_method = g_m     # 
@@ -107,14 +107,13 @@ class GUI:
         """Create object and set some state attributes."""
         self.url = url                          # Url of Ensembl FTP site
         self.ensembl_prot_path = prot_path      # Location of Ensembl databases
-        self.ensembl_ftp = os.path.dirname(prot_path)   # top FTP level
+        self.ensembl_ftp = os.path.dirname(prot_path)   # top level where databases are
         self.ftp = None                         # FTP object (set in login method)
         self.text = text                        # HTML text of webpage
         self.raw_table = []                     # HTML text of just animals table
         self.selected_entries = []              # List of selected AnimalEntry objects
         self.animal_list = []                   # List of all AnimalEntry objects
         self.banned_list = banned_list          # List of file identifiers to be omitted when downloading
-        self.date = ""                          # This should be the date uploaded(i.e. 2017.07 for July release)
         self.release = ''                       # Ensembl release number
         self.headers = headers                  # Needed for columns in tables
         self.proteome_IDs = []                  # List of unique proteome IDs
@@ -143,16 +142,19 @@ class GUI:
 
     # some parsing support        
     def clean_common_name(self, name):
+        """Removes some odd characters from common names."""
         p = re.compile(r"alt=\"(.*?)\"")
         m = p.search(name)
         return m.groups()[0]
 
     def clean_latin_name(self, name):
+        """Removes some odd characters from latin names."""
         p = re.compile(r"<i\b[^>]*>(.*?)</i>")
         m = p.search(name)
         return m.groups()[0]
 
     def create_raw_table(self):
+        """Finds table boundaries in the HTML page."""
         # Setup html file to find required information 
         # Find start and end of h3 header block
         TEXT = self.text
@@ -189,7 +191,6 @@ class GUI:
 
         # get data from pickle file
         self.data = self.unpickle_entries()
-        self.date = self.data["Date"]
         self.release = self.data["Release"]
         self.animal_list = self.data["Entries"]
 
@@ -232,55 +233,71 @@ class GUI:
                 animal_obj = AnimalEntry(common_name, latin_name, tax_id, animal[3], animal[4],
                                          animal[5], animal[6], animal[7], animal[8])
 
-                # Set animal object's folder name and ftp download path
+                # Set animal object's folder name (ftp download path is set in remove_invalid_animals method)
                 folder_name = "{}_{}_{}".format(animal_obj.common_name, animal_obj.latin_name, animal_obj.tax_ID)
                 folder_name = folder_name.replace(" ", "-")
                 animal_obj.folder_name = folder_name
-                
-                download_latin_name = latin_name.replace(" ", "_").lower()
-                # download_path = os.path.join(self.ensembl_prot_path, download_latin_name, "pep", "")
-                download_path = r"{}/{}/pep/".format(self.ensembl_prot_path, download_latin_name)
-                animal_obj.ftp_file_path = download_path
+
+                # save animal record
                 self.animal_list.append(animal_obj)
                 
-            self.remove_invalid_animals()
-            self.get_date()
+            self.remove_invalid_animals()   # FTP paths are set in this method
 
             # save the fetched species information
             self.pickle_entries()
 
     def remove_invalid_animals(self):
-        self.login()
-        # If we cant find the animal directory, remove it from animal list
-        for animal in self.animal_list:
-            try:
-                self.ftp.cwd(animal.ftp_file_path)
-            except ftplib.error_perm:
-                self.animal_list.remove(animal)
+        """Make sure animals in species table have actual FTP links."""
+        # if we cant find the animal directory, remove it from animal list
+        del_list = []
+        actual_list = self.get_animal_directory() # get list of FTP folders
+        actual_set = set(actual_list)
+        for i, animal in enumerate(self.animal_list):
+            if animal.ensembl_assembly == '-':  # no ftp if no assembly?
+                del_list.append(i)
+            else:
+                test_name = animal.latin_name.lower().replace(" ", "_")
+                if test_name not in actual_set:
+                    match = self.double_check_animal(test_name, actual_list)
+                    if test_name == 'canis_lupus_familiaris':
+                        print('match:', match)
+                        print('download_path:', r"{}/{}/pep/".format(self.ensembl_prot_path, match))
+                    if match:
+                        download_path = r"{}/{}/pep/".format(self.ensembl_prot_path, match)
+                        animal.ftp_file_path = download_path
+                    else:
+                        del_list.append(i)
+                else:
+                    download_path = r"{}/{}/pep/".format(self.ensembl_prot_path, test_name)
+                    animal.ftp_file_path = download_path
 
-    def get_date(self):
+        # delete list items (work backwards)
+        del_list = del_list[::-1]
+        for i in del_list:
+            del(self.animal_list[i])
+
+    def double_check_animal(self, test_name, actual_list):
+        """Latin species names in table do not always match FTP folder names (gorilla and dog)"""
+        test_set = set(test_name.split('_'))
+        for actual in actual_list:
+            actual_set = set(actual.split('_'))
+            if (actual_set < test_set) or (actual_set == test_set):
+                return actual
+        else:
+            return None
+
+    def get_animal_directory(self):
+        """Get list of folder names from the FTP site"""
         self.login()
-        # Just hope that this animal actually exists in ftp database, because aardvark doesn't
-        self.ftp.cwd(self.animal_list[1].ftp_file_path)  
-        
-        # Create a list of all files in each species folder
+        self.ftp.cwd(self.ensembl_prot_path)
         listing = []
-        self.ftp.retrlines('LIST', listing.append)
-        
-        # Download each selected entry's fasta file
-        line = listing[0]
-        line = line.strip()  # Want last item, so strip EOL
-        fname = line.split()[-1]
-        modifiedTime = self.ftp.sendcmd('MDTM {}'.format(fname))
-        modifiedTime = datetime.strptime(modifiedTime[4:], "%Y%m%d%H%M%S").strftime("%d %B %Y %H:%M:%S")
-        # Prints something like "07 May 2017 22:22:07"
-        month = modifiedTime.split()[1]
-        year = modifiedTime.split()[2]
-        self.date = "{}.{}".format(month, year)
+        self.ftp.retrlines('LIST', listing.append)  # get list of folders
+        listing = [x.split()[-1].strip() for x in listing]
+        return listing
         
     def pickle_entries(self):
         """Saves full left display list to make subsequent launches faster."""
-        text = {"Date": self.date, "Release": self.release, "Entries": self.animal_list}
+        text = {"Release": self.release, "Entries": self.animal_list}
 
         # make sure we are in the location with the script
         try:
@@ -395,13 +412,10 @@ class GUI:
     def save_defaults(self, overwrite=False):
         """Saves species in the right display box to a default species text file"""
         desired_file = self.selected_default
-        print('desired_file before dialog:', desired_file)
         if not overwrite:
-            print('should be asking for save file name')
             desired_file = fasta_lib.save_file(self.script_location, [('Text files', '*.txt')],
                                                default_file=os.path.split(self.selected_default)[1],
                                                title_string='Specify a default species file name')
-            print('desired_file after didalog:', desired_file)
         if desired_file:
             try:
                 # write default species list to file
@@ -431,6 +445,7 @@ class GUI:
         self.load_defaults()
                         
     def load_defaults(self, display=True):
+        """Loads right species list from file."""
         try:
             with open(self.selected_default, "r") as defaults_txt:
                 databases = defaults_txt.readlines()
@@ -547,7 +562,6 @@ class GUI:
             # Download each selected entry's fasta file
             for line in listing:
                 line = line.strip() # Want last item, so strip EOL
-                # self.date = line.split()[-4]  # Gives the month uploaded
                 fname = line.split()[-1] # Get the file name
                 
                 # Skip any files that we do not want to download
@@ -631,18 +645,11 @@ class GUI:
         ## Main Frame
         optionFrame = LabelFrame(self.root, text="Options")
         optionFrame.pack(side=TOP, padx=5, pady=5)
-
-        # Additiona database types Frame
-        ## Main Frame
-        revFrame = LabelFrame(optionFrame, text="Additional Database Processing")
-        revFrame.pack(fill=BOTH, expand=YES, padx=5, pady=5)
-        self.reverse_contams = CheckBoxes(revFrame, ["Target/Decoy Databases", "Add Contaminants"])
-        self.reverse_contams.pack(side = LEFT, fill=X, padx=5, pady=5)
         
         # Search Window
         ## Main Frame
         searchWindowFrame = LabelFrame(optionFrame, text="Filters")
-        searchWindowFrame.pack(side=BOTTOM, fill=BOTH, expand=YES, padx=5, pady=5)
+        searchWindowFrame.pack(side=TOP, fill=BOTH, expand=YES, padx=5, pady=5)
         
         # Create search bars/buttons
         species_frame = Frame(searchWindowFrame)
@@ -664,6 +671,14 @@ class GUI:
         filter_button.pack(side=LEFT, padx=10, pady=10)
         clear_button = Button(searchWindowFrame, text="Reset Filters", command=self.reset_filters)
         clear_button.pack(side=RIGHT, padx=10, pady=10)
+
+        # Additional Database Processing Frame
+        ## Main Frame
+        revFrame = LabelFrame(optionFrame, text="Additional Database Processing")
+        revFrame.pack(fill=BOTH, expand=YES, padx=5, pady=5)
+        
+        self.reverse_contams = CheckBoxes(revFrame, ["Target/Decoy Databases", "Add Contaminants"])
+        self.reverse_contams.pack(side = LEFT, fill=X, padx=5, pady=5)
 
         # Entry mover-thingy Frame
         ## Main Frame
@@ -700,34 +715,24 @@ class GUI:
         
         
         ## Menu Buttons
-        button_width = 19
         buttonFrame = LabelFrame(entryFrame, text="Menu Buttons")
         buttonFrame.pack(side=LEFT)
 
-        addButton = Button(buttonFrame, text="Add Proteome(s)", command=self.move_to_right)
-        addButton.pack()
-        addButton.config(width=button_width)
+        # Set button attributes
+        button_names = ["Add Proteome(s)", "Drop Proteome(s)",
+                        "Save Default Species", "Load Default Species",
+                        "Download", "Quit"]
+        button_commands = [self.move_to_right, self.move_to_left,
+                           self.save_defaults, self.select_defaults_and_load,
+                           self.download_databases, self.quit_gui]
+        btn_width = 18
 
-        removeButton = Button(buttonFrame, text="Drop Proteome(s)", command=self.move_to_left)
-        removeButton.pack()
-        removeButton.config(width=button_width)
-        
-        saveButton = Button(buttonFrame, text="Save Defaults", command=self.save_defaults)  
-        saveButton.pack()
-        saveButton.config(width=button_width)
-
-        importButton = Button(buttonFrame, text="Import Defaults", command=self.load_defaults)
-        importButton.pack()
-        importButton.config(width=button_width)
-        
-        downloadButton = Button(buttonFrame, text="Download Databases", command=self.download_databases)
-        downloadButton.pack()
-        downloadButton.config(width=button_width)
-
-        quitButton = Button(buttonFrame, text="Quit", command=self.quit_gui)
-        quitButton.pack()
-        quitButton.config(width=button_width)
-        
+        # Create buttons
+        for btn_name, btn_command in zip(button_names, button_commands):
+            button = Button(buttonFrame, text=btn_name,
+                            command=btn_command)
+            button.pack()
+            button.config(width=btn_width)        
 
         ## Right Window
         rightWindowFrame = LabelFrame(entryFrame, text="Selected Proteomes")
@@ -768,7 +773,7 @@ class GUI:
         
         # open the FTP connection
         self.login()
-        self.load_defaults(True)  # initial import of defaults
+        self.load_defaults()  # initial import of defaults
         self.create_raw_table()
         self.parse_raw_table()  # Create Entry objects
         self.root.protocol("WM_DELETE_WINDOW", self.quit_gui)  # Override window close event
@@ -789,6 +794,7 @@ if __name__ == '__main__':
     RESPONSE = urllib.request.urlopen(PARSE_URL)
     DATA = RESPONSE.read()
     TEXT = DATA.decode('utf-8')
-    
+
+    # create the GUI object and start program    
     gui = GUI(FTP_URL, PROT_PATH, TEXT, HEADERS, BANNED, SCRIPT_LOCATION)
     gui.create_gui()

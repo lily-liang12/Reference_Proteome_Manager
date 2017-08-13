@@ -36,17 +36,23 @@ checks for duplicate accessions, too
 import os
 import sys
 import copy
+import re
 import argparse
-import fasta_lib_Py3 as fasta_lib
+import fasta_lib
 
                        
 def parse_ensembl_header_line(line, all_tags):
     """Parses new format Ensembl FASTA header lines."""
     parsed = {}
     tags = [x for x in all_tags if x in line]
+    original = line
     while line:
         line = line.strip() # do some trimming
-        current_tag = tags.pop()    # get the next tag (from end to beginning)
+        try:
+            current_tag = tags.pop()    # get the next tag (from end to beginning)
+        except:
+            print(original)
+            raise
         line, current_value = line.split(current_tag) # split out the next element
         parsed[current_tag] = current_value # save element in tag dictionary
         
@@ -55,11 +61,17 @@ def parse_ensembl_header_line(line, all_tags):
         parsed['description:'] = 'NO DESCRIPTION'
     extra = ' ('
     if 'gene:' in parsed:
-        extra += 'g:' + str(float(parsed['gene:'][7:]))
+        if parsed['gene:'].startswith('ENS'):
+            extra += 'g:' + str(float(re.sub("\D", "", parsed['gene:'])))
+        else:
+            extra += 'g:' + parsed['gene:']
     if 'transcript:' in parsed:
         if extra != ' (':
             extra += ', '
-        extra += 't:' + str(float(parsed['transcript:'][7:]))
+        if parsed['transcript:'].startswith('ENS'):
+            extra += 't:' + str(float(re.sub("\D", "", parsed['transcript:'])))
+        else:
+            extra += 't:' + parsed['transcript:']
     if 'gene_symbol:' in parsed:
         symbol = parsed['gene_symbol:']
         if extra != ' (':
@@ -109,8 +121,10 @@ def main(fasta_file, up_one=False):
     U_count = 0     # selenocysteine
     
     # set up the list of possible tags in header lines
-    all_tags = ['pep:', 'pep scaffold:', 'pep chromosome:', 'gene:', 'transcript:', 
-                'gene_biotype:', 'transcript_biotype:', 'gene_symbol:', 'description:']
+    all_tags = ['pep:', 'pep scaffold:', 'pep genescaffold:', 'pep chromosome:', 'pep contig:',
+                'pep reftig:', 'pep supercontig:', 'pep ultracontig:', 'pep group:',
+                'gene:', 'transcript:', 'gene_biotype:',
+                'transcript_biotype:', 'gene_symbol:', 'description:']
 
     # read the sequences into a list
     f = fasta_lib.FastaReader(fasta_file)

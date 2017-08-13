@@ -439,7 +439,7 @@ class GUI:
         if not overwrite:
             print('should be asking for save file name')
             desired_file = fasta_lib.save_file(self.script_path, [('Text files', '*.txt')],
-                                               default_file=self.selected_default,
+                                               default_file=os.path.split(self.selected_default)[1],
                                                title_string='Specify a default species file name')
         if desired_file:
             try:
@@ -470,6 +470,7 @@ class GUI:
         self.load_defaults()
                         
     def load_defaults(self, display=True):
+        """Load right species list from file."""
         try:
             with open(self.selected_default, "r") as defaults_txt:
                 databases = defaults_txt.readlines()
@@ -739,7 +740,7 @@ class GUI:
         # Search Window
         ## Main Frame
         searchWindowFrame = LabelFrame(optionFrame, text="Additional Filters")
-        searchWindowFrame.pack(side=BOTTOM, fill=BOTH, expand=YES, padx=5, pady=5)
+        searchWindowFrame.pack(side=TOP, fill=BOTH, expand=YES, padx=5, pady=5)
 
         # Create search bars/buttons
         # Species Search Bar
@@ -758,17 +759,18 @@ class GUI:
         self.searchTax = Entry(tax_frame)
         self.searchTax.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=5)
 
-        # Checkboxes for contams and/or decoy databases
-        addSeqFrame = LabelFrame(optionFrame, text="Additional Database Processing")
-        addSeqFrame.pack(fill=X, padx=5, pady=5)
-        self.reverse_contams = CheckBoxes(addSeqFrame, ["Target/Decoy Databases", "Add Contaminants"])
-        self.reverse_contams.pack(side = LEFT, fill=X, padx=5, pady=5)
-
         ## Show filtered list button and reset filters button
         filter_button = Button(searchWindowFrame, text="Show Filtered List", command=self.get_filtered_proteome_list)
         filter_button.pack(side=LEFT, padx=10, pady=10)
         clear_button = Button(searchWindowFrame, text="Reset Filters", command=self.reset_filters)
         clear_button.pack(side=RIGHT, padx=10, pady=10)
+
+        # Checkboxes for contams and/or decoy databases
+        addSeqFrame = LabelFrame(optionFrame, text="Additional Database Processing")
+        addSeqFrame.pack(fill=X, padx=5, pady=5)
+        
+        self.reverse_contams = CheckBoxes(addSeqFrame, ["Target/Decoy Databases", "Add Contaminants"])
+        self.reverse_contams.pack(side = LEFT, fill=X, padx=5, pady=5)
 
         # Entry mover-thingy Frame
         ## Main Frame
@@ -815,13 +817,13 @@ class GUI:
         buttonFrame.pack(side=LEFT)
 
         # Set button attributes
-        button_names = ["Add Proteome(s)", "Drop Proteom(s)",
+        button_names = ["Add Proteome(s)", "Drop Proteome(s)",
                         "Save Default Species", "Load Default Species",
                         "Download", "Quit"]
         button_commands = [self.move_to_right, self.move_to_left,
                            self.save_defaults, self.select_defaults_and_load,
                            self.download_databases, self.quit_gui]
-        btn_width = 18
+        btn_width = 19
 
         # Create buttons
         for btn_name, btn_command in zip(button_names, button_commands):

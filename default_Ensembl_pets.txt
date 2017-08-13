@@ -1,0 +1,3 @@
+['Cat', 'Felis catus', 9685, 'Felis_catus_6.2']
+['Chicken', 'Gallus gallus', 9031, 'Gallus_gallus-5.0']
+['Dog', 'Canis lupus familiaris', 9615, 'CanFam3.1']
