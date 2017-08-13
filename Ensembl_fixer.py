@@ -121,6 +121,7 @@ def main(fasta_file, up_one=False):
     U_count = 0     # selenocysteine
     
     # set up the list of possible tags in header lines
+    # this should probably be generalized somehow...
     all_tags = ['pep:', 'pep scaffold:', 'pep genescaffold:', 'pep chromosome:', 'pep contig:',
                 'pep reftig:', 'pep supercontig:', 'pep ultracontig:', 'pep group:',
                 'gene:', 'transcript:', 'gene_biotype:',

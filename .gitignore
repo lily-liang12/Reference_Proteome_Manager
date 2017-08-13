@@ -1,6 +1,5 @@
-Ensembl/__pycache__/*.pyc
-Reference_Proteome_Manager_UniProt/__pycache__/*.pyc
 **.pyc
 **.pickle
+default*.txt
 **/*.pyc
 .DS_Store

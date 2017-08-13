@@ -335,8 +335,8 @@ class GUI:
         kingdoms = dict(zip(self.kingdom_paths, self.checkbox_values))
 
         # Get the species and taxonomy substring filters
-        species_entry = self.searchSpecies.get().lower()
-        tax_entry = self.searchTax.get()
+        species_entry = self.search_species.get().lower()
+        tax_entry = self.search_tax.get()
 
         # Filter for Kingdoms that were selected
         self.kingdom_selections = [key for key in kingdoms if kingdoms[key] == 1]        
@@ -379,8 +379,8 @@ class GUI:
         """Resets filters to defaults."""
         self.checkboxes.check_all()
         self.reverse_contams.uncheck_all()
-        self.searchSpecies.delete(0, END)
-        self.searchTax.delete(0, END)
+        self.search_species.delete(0, END)
+        self.search_tax.delete(0, END)
         
     def sort_text_column(self, tv, col, reverse=False):
         """Sorts entries in treeview tables alphabetically."""
@@ -545,17 +545,19 @@ class GUI:
         forward = False
         reverse = False
         both = False
-        decoy = reverse_values[0]
-        contams = reverse_values[1]
+        decoy_contams = reverse_values[0]
+        target_contams = reverse_values[1]
 
-        if decoy:
+        if decoy_contams:
             both = True
-        if contams and not decoy:
+        if target_contams:
             forward = True
-        if not contams:
-            contam_location = os.path.join(contam_location, "block")  # Prevent script from finding contams file
 
-        if contams or decoy:        
+##        # no longer have option for target/decoy wothout contams
+##        if not contams:
+##            contam_location = os.path.join(contam_location, "block")  # Prevent script from finding contams file
+
+        if decoy_contams or target_contams:        
             reverse_fasta.main(fasta_file, forward, reverse, both, contam_path=contam_location)
             
     def download_databases(self):
@@ -599,11 +601,12 @@ class GUI:
             self.ftp.cwd(entry.ftp_file_path)
                 
             # Set local location for the download
+            download_folder = os.path.join(uniprot_dir_path, entry.download_folder_name)
             try:
-                os.mkdir(os.path.join(uniprot_dir_path, entry.download_folder_name))
-                os.chdir(os.path.join(uniprot_dir_path, entry.download_folder_name))
+                os.mkdir(download_folder)
+                os.chdir(download_folder)
             except FileExistsError:
-                os.chdir(os.path.join(uniprot_dir_path, entry.download_folder_name))
+                os.chdir(download_folder)
             except OSError:
                 print("OSError")
                 print('Download for this entry failed:')
@@ -617,9 +620,11 @@ class GUI:
                     continue
                 
                 # Download the file (overwrites any existing files)
+                fixed_file = "{}_{}".format(self.date, file)
                 self.update_status_bar("Downloading {} file".format(file))
                 self.ftp.retrbinary('RETR {}'.format(file), open('{}'.format(file), 'wb').write)
                 print("{} is done downloading".format(file))
+                os.rename(os.path.join(download_folder, file), os.path.join(download_folder, fixed_file))
 
             self.make_fasta_files(uniprot_dir_path, entry)
 
@@ -638,7 +643,7 @@ class GUI:
         combines fasta and additional fasta files with decompression.
         """
         # Get the list of protein fasta files
-        temp_files = [x for x in entry.ftp_download_list if 'fasta' in x.lower()]
+        temp_files = ["{}_{}".format(self.date, x) for x in entry.ftp_download_list if 'fasta' in x.lower()]
         fasta_files = []
         combined_files = []
         for f in temp_files:
@@ -725,68 +730,68 @@ class GUI:
 
         # Check boxes and Import button Frame
         ## Main Frame
-        optionFrame = LabelFrame(self.root, text="Options")
-        optionFrame.pack(side=TOP, padx=5, pady=5)
+        option_frame = LabelFrame(self.root, text="Options")
+        option_frame.pack(side=TOP, padx=5, pady=5)
 
         ## Kingdom Frame
-        kingdomFrame = LabelFrame(optionFrame, text="Kingdoms")
-        kingdomFrame.pack(side=TOP, fill=BOTH, expand=YES, padx=5, pady=5)
+        kingdom_frame = LabelFrame(option_frame, text="Kingdoms")
+        kingdom_frame.pack(side=TOP, fill=BOTH, expand=YES, padx=5, pady=5)
 
         ## Generate checkboxes
-        self.checkboxes = CheckBoxes(kingdomFrame, self.kingdom_paths)
+        self.checkboxes = CheckBoxes(kingdom_frame, self.kingdom_paths)
         self.checkboxes.pack(side=LEFT, fill=X)
         self.checkboxes.check_all()
 
         # Search Window
         ## Main Frame
-        searchWindowFrame = LabelFrame(optionFrame, text="Additional Filters")
-        searchWindowFrame.pack(side=TOP, fill=BOTH, expand=YES, padx=5, pady=5)
+        search_window_frame = LabelFrame(option_frame, text="Additional Filters")
+        search_window_frame.pack(side=TOP, fill=BOTH, expand=YES, padx=5, pady=5)
 
         # Create search bars/buttons
         # Species Search Bar
-        species_frame = Frame(searchWindowFrame)
+        species_frame = Frame(search_window_frame)
         species_frame.pack(fill=X, padx=5, pady=5)
         species_label = Label(species_frame, text="Species Name:")
         species_label.pack(side=LEFT, padx=5, pady=5)
-        self.searchSpecies = Entry(species_frame)
-        self.searchSpecies.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=5)        
+        self.search_species = Entry(species_frame)
+        self.search_species.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=5)        
 
         # Taxonomy ID Search Bar
-        tax_frame = Frame(searchWindowFrame)
+        tax_frame = Frame(search_window_frame)
         tax_frame.pack(fill=X, padx=5, pady=5)
         tax_label = Label(tax_frame, text="Taxonomy ID:")
         tax_label.pack(side=LEFT, padx=5, pady=5)
-        self.searchTax = Entry(tax_frame)
-        self.searchTax.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=5)
+        self.search_tax = Entry(tax_frame)
+        self.search_tax.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=5)
 
         ## Show filtered list button and reset filters button
-        filter_button = Button(searchWindowFrame, text="Show Filtered List", command=self.get_filtered_proteome_list)
+        filter_button = Button(search_window_frame, text="Show Filtered List", command=self.get_filtered_proteome_list)
         filter_button.pack(side=LEFT, padx=10, pady=10)
-        clear_button = Button(searchWindowFrame, text="Reset Filters", command=self.reset_filters)
+        clear_button = Button(search_window_frame, text="Reset Filters", command=self.reset_filters)
         clear_button.pack(side=RIGHT, padx=10, pady=10)
 
         # Checkboxes for contams and/or decoy databases
-        addSeqFrame = LabelFrame(optionFrame, text="Additional Database Processing")
-        addSeqFrame.pack(fill=X, padx=5, pady=5)
+        add_seq_frame = LabelFrame(option_frame, text="Additional Database Processing")
+        add_seq_frame.pack(fill=X, padx=5, pady=5)
         
-        self.reverse_contams = CheckBoxes(addSeqFrame, ["Target/Decoy Databases", "Add Contaminants"])
+        self.reverse_contams = CheckBoxes(add_seq_frame, ["Target+Decoy w/Contams", "Target w/Contams"])
         self.reverse_contams.pack(side = LEFT, fill=X, padx=5, pady=5)
 
         # Entry mover-thingy Frame
         ## Main Frame
-        entryFrame = LabelFrame(self.root, text="Entries")
-        entryFrame.pack(side=TOP, fill=BOTH, expand=YES, padx=5, pady=5)
+        entry_frame = LabelFrame(self.root, text="Entries")
+        entry_frame.pack(side=TOP, fill=BOTH, expand=YES, padx=5, pady=5)
 
         # set tighter columns so species is easier to see
         col_width = {"TAX ID": 80, "CANONICAL #": 80, "ISOFORM #": 80}
         int_cols = ["TAX ID", "CANONICAL #", "ISOFORM #"]
 
         ## Left Window
-        leftWindowFrame = LabelFrame(entryFrame, text="Reference Proteomes")
-        leftWindowFrame.pack(fill=BOTH, expand=YES, side=LEFT, padx=5, pady=10)
+        left_tree_frame = LabelFrame(entry_frame, text="Reference Proteomes")
+        left_tree_frame.pack(fill=BOTH, expand=YES, side=LEFT, padx=5, pady=10)
 
         # Create TreeView
-        self.tree_left = Treeview(leftWindowFrame, columns=self.headers, show="headings")
+        self.tree_left = Treeview(left_tree_frame, columns=self.headers, show="headings")
         self.tree_left.pack(fill=BOTH, expand=YES, side=LEFT, padx=5, pady=5)
         for col in self.headers:
             if col in int_cols:
@@ -802,18 +807,18 @@ class GUI:
         self.tree_left.column(self.headers[-1], minwidth=25, width=650, stretch=YES)  
     
         # Add scrollbars to the TreeView 
-        leftScrollY = Scrollbar(leftWindowFrame, orient=VERTICAL)
-        leftScrollY.pack(side=RIGHT, fill=Y)
+        left_scroll_Y = Scrollbar(left_tree_frame, orient=VERTICAL)
+        left_scroll_Y.pack(side=RIGHT, fill=Y)
         
-        leftScrollX = Scrollbar(self.tree_left, orient=HORIZONTAL)
-        leftScrollX.pack(side=BOTTOM, fill=X)    
+        left_scroll_X = Scrollbar(self.tree_left, orient=HORIZONTAL)
+        left_scroll_X.pack(side=BOTTOM, fill=X)    
 
-        self.tree_left.config(yscrollcommand=leftScrollY.set, xscrollcommand=leftScrollX.set)
-        leftScrollY.config(command = self.tree_left.yview)
-        leftScrollX.config(command = self.tree_left.xview)
+        self.tree_left.config(yscrollcommand=left_scroll_Y.set, xscrollcommand=left_scroll_X.set)
+        left_scroll_Y.config(command = self.tree_left.yview)
+        left_scroll_X.config(command = self.tree_left.xview)
                 
         ## Menu Buttons
-        buttonFrame = LabelFrame(entryFrame, text="Menu Buttons")
+        buttonFrame = LabelFrame(entry_frame, text="Menu Buttons")
         buttonFrame.pack(side=LEFT)
 
         # Set button attributes
@@ -823,7 +828,7 @@ class GUI:
         button_commands = [self.move_to_right, self.move_to_left,
                            self.save_defaults, self.select_defaults_and_load,
                            self.download_databases, self.quit_gui]
-        btn_width = 19
+        btn_width = 18
 
         # Create buttons
         for btn_name, btn_command in zip(button_names, button_commands):
@@ -833,10 +838,10 @@ class GUI:
             button.config(width=btn_width)
 
         ## Right Window
-        rightWindowFrame = LabelFrame(entryFrame, text="Selected Proteomes")
-        rightWindowFrame.pack(fill=BOTH, expand=YES, side=RIGHT, padx=5, pady=10)
+        right_tree_frame = LabelFrame(entry_frame, text="Selected Proteomes")
+        right_tree_frame.pack(fill=BOTH, expand=YES, side=RIGHT, padx=5, pady=10)
         
-        self.tree_right = Treeview(rightWindowFrame, columns=self.headers, show="headings")
+        self.tree_right = Treeview(right_tree_frame, columns=self.headers, show="headings")
         self.tree_right.pack(fill=BOTH, expand=YES, side=LEFT, padx=5, pady=5)
         for col in self.headers:
             if col in int_cols:
@@ -850,22 +855,22 @@ class GUI:
         self.tree_right.heading(self.headers[-1], anchor=W)
         self.tree_right.column(self.headers[-1], width=650, stretch=YES) # Assumes species names are last
         
-        rightScrollX = Scrollbar(self.tree_right, orient=HORIZONTAL)
-        rightScrollX.pack(side=BOTTOM, fill=X)
+        right_scroll_X = Scrollbar(self.tree_right, orient=HORIZONTAL)
+        right_scroll_X.pack(side=BOTTOM, fill=X)
 
-        rightScrollY = Scrollbar(rightWindowFrame, orient=VERTICAL)
-        rightScrollY.pack(side=RIGHT, fill=Y)
+        right_scroll_Y = Scrollbar(right_tree_frame, orient=VERTICAL)
+        right_scroll_Y.pack(side=RIGHT, fill=Y)
 
-        self.tree_right.config(yscrollcommand=rightScrollY.set, xscrollcommand=rightScrollX.set)
-        rightScrollY.config(command = self.tree_right.yview)
-        rightScrollX.config(command = self.tree_right.xview)
+        self.tree_right.config(yscrollcommand=right_scroll_Y.set, xscrollcommand=right_scroll_X.set)
+        right_scroll_Y.config(command = self.tree_right.yview)
+        right_scroll_X.config(command = self.tree_right.xview)
         
         # Miscellaneous Frame
-        miscFrame = Frame(self.root)
-        miscFrame.pack(side=BOTTOM, fill=X, padx=5, pady=5)
+        misc_frame = Frame(self.root)
+        misc_frame.pack(side=BOTTOM, fill=X, padx=5, pady=5)
 
         # Status Bar
-        status_frame = LabelFrame(miscFrame, text="Status")
+        status_frame = LabelFrame(misc_frame, text="Status")
         status_frame.pack(side=TOP, fill=X, padx=5, pady=5)
         self.status_bar = Label(status_frame, text="", relief=SUNKEN)
         self.status_bar.pack(fill=X, padx=5, pady=5)
