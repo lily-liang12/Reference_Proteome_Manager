@@ -24,7 +24,7 @@ lists of species to download are supported so that updates to commonly used data
 easy to do.    
 
 ## User Guide
-A PowerPoint User Guide is included to help users. Please check that for more detailed information on how to use the program. Some screen shot graphics may not exactly match
+A PowerPoint User Guide is included to help users. Please check that for more detailed information on how to use the program. The guide descripes the UniProt GUI tool but the Ensembl GUI tool is very similar. Some screen shot graphics may not exactly match
 current program versions but most of the information should be up-to-date.
 
 ## Getting Started
