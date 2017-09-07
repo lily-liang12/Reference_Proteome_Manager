@@ -1,5 +1,5 @@
 # Reference_Proteome_Manager project
-There are two main programs to allow researchers to download and maintain protein databases.
+There are two main programs to allow proteomics researchers to download and maintain protein databases.
  
 "UniProt_reference_proteome_manager.py" allows users to select from the UniProt
 [reference proteomes](http://www.uniprot.org/help/reference_proteome) available for FTP download (ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/reference_proteomes/). There are many more completed proteomes (over 150 thousand) than
