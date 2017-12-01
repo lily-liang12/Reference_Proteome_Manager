@@ -32,6 +32,7 @@ Parses and reformats description strings.
 Written by Phil Wilmarth, OHSU, 2016
 #
 checks for duplicate accessions, too
+added some additional testing to make header line parsing more robust -PW 12/1/2017
 """ 
 import os
 import sys
@@ -43,16 +44,15 @@ import fasta_lib
                        
 def parse_ensembl_header_line(line, all_tags):
     """Parses new format Ensembl FASTA header lines."""
+    original = line
     parsed = {}
     tags = [x for x in all_tags if x in line]
-    original = line
+    if not tags:    # might get empty tags if DB already fixed
+        return line
+    
     while line:
         line = line.strip() # do some trimming
-        try:
-            current_tag = tags.pop()    # get the next tag (from end to beginning)
-        except:
-            print(original)
-            raise
+        current_tag = tags.pop()    # get the next tag (from end to beginning)
         line, current_value = line.split(current_tag) # split out the next element
         parsed[current_tag] = current_value # save element in tag dictionary
         
@@ -60,23 +60,23 @@ def parse_ensembl_header_line(line, all_tags):
     if 'description:' not in parsed:
         parsed['description:'] = 'NO DESCRIPTION'
     extra = ' ('
-    if 'gene:' in parsed:
+    if 'gene:' in parsed and parsed['gene:']:
         if parsed['gene:'].startswith('ENS'):
             extra += 'g:' + str(float(re.sub("\D", "", parsed['gene:'])))
         else:
             extra += 'g:' + parsed['gene:']
-    if 'transcript:' in parsed:
+    if 'transcript:' in parsed and parsed['transcript:']:
         if extra != ' (':
             extra += ', '
         if parsed['transcript:'].startswith('ENS'):
             extra += 't:' + str(float(re.sub("\D", "", parsed['transcript:'])))
         else:
             extra += 't:' + parsed['transcript:']
-    if 'gene_symbol:' in parsed:
+    if 'gene_symbol:' in parsed and parsed['gene_symbol:']:
         symbol = parsed['gene_symbol:']
         if extra != ' (':
             extra += ', '
-        extra += 'gene:' + parsed['gene_symbol:']
+        extra += 'gs:' + parsed['gene_symbol:']
     if extra == ' (':
         extra =  ''
     else:
