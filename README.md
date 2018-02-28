@@ -51,3 +51,6 @@ Download this repo as a .zip file or clone it to access the files.
 
 ## License
 This project is licensed under the MIT License.
+
+## Updates and bug fixes
+- Feb. 28, 2018 (PW): UniProt FTP README file layout changed and entries were not getting read
