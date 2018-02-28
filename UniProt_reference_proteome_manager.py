@@ -277,8 +277,7 @@ class GUI:
         
             # Find and parse the table
             header_index = listing.index('Proteome_ID Tax_ID  OSCODE     #(1)    #(2)    #(3)  Species Name')
-            last_index = listing.index('Gene mapping files (*.gene2acc)')
-            for line in listing[header_index:last_index]:
+            for line in listing[header_index:]:
                 try:
                     entry = ReadMeEntry(line)
                 except ValueError:
@@ -553,7 +552,7 @@ class GUI:
         if target_contams:
             forward = True
 
-##        # no longer have option for target/decoy wothout contams
+##        # no longer have option for target/decoy without contams
 ##        if not contams:
 ##            contam_location = os.path.join(contam_location, "block")  # Prevent script from finding contams file
 
@@ -629,6 +628,7 @@ class GUI:
             self.make_fasta_files(uniprot_dir_path, entry)
 
         messagebox.showinfo("All Downloads Completed!", "Downloads Finished!")
+        self.update_status_bar("Done downloading")
 
     def banned_file(self, fname):
         """False if fname in banned list."""
