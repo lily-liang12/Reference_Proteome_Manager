@@ -47,10 +47,13 @@ def main(fasta_file, forward=False, reverse=False, both=True, log_obj=None, cont
     If "forward", make sequences plus contaminants,
     if "reverse", make reversed sequences with reversed contaminants,
     if "both", make concatenated target/decoy with contaminants.
+    "contam_path" is optional fullpath name of a contaminants database to use instead of default
     """
     decoy_string = 'REV_'   # the string to denote decoy sequences
-    ###################################### Change contaminants file name here:
+    ######################################
+    # Change default contaminants file name here:
     CONTAMS = 'Thermo_contams_fixed.fasta'
+    # or pass in a "contams_path"
     ######################################
     
     # open the "forward" and "reversed" output files
@@ -87,9 +90,10 @@ def main(fasta_file, forward=False, reverse=False, both=True, log_obj=None, cont
             path = os.path.split(fasta_file)[0]
             if os.path.exists(os.path.join(path, CONTAMS)):
                 _file = os.path.join(path, CONTAMS)
-    else:
-        if os.path.exists(os.path.join(contam_path, CONTAMS)):
-            _file = os.path.join(contam_path, CONTAMS)
+    elif os.path.exists(contam_path) and os.path.isfile(contam_path):
+        _file = contam_path
+    elif os.path.isdir(contam_path) and os.path.exists(os.path.join(contam_path, CONTAMS)):
+        _file = os.path.join(contam_path, CONTAMS)
         
     # create reader and add contaminants (if contams file was found)
     if _file:

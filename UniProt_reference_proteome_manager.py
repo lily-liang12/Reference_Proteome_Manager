@@ -27,6 +27,10 @@ Technology & Research Collaborations, Oregon Health & Science University,
 Ph: 503-494-8200, FAX: 503-494-4729, Email: techmgmt@ohsu.edu.
 """
 # debugging and minor edits -PW 8/2/2017
+# added support for different contaminant databases -PW 8/9/2018
+# added options for format of file/folder names -PW 8/9/2018
+# added option for downloading canonical only -PW 8/9/2018
+# default species list now gets updated sequence counts -PW 8/9/2018
 
 # Built-in module imports
 from tkinter import *
@@ -35,6 +39,7 @@ from tkinter import messagebox
 from tkinter import filedialog
 import os
 import sys
+import time
 import ftplib
 import datetime
 import re
@@ -167,7 +172,7 @@ class ReadMeEntry:
 class GUI:
     """Main GUI class for application.
     """
-    def __init__(self, url, ref_prot_path, kingdom_paths, headers, banned_list, script_path):
+    def __init__(self, url, ref_prot_path, kingdom_paths, headers, banned_list, script_path, default_contams):
         """Create object and set some state attributes."""
         self.url = url                          # Url of UniProt FTP site
         self.ftp = None                         # FTP object (set in login method)
@@ -175,12 +180,15 @@ class GUI:
         self.kingdom_paths = kingdom_paths      # List of directory names where files are located (kingdoms)
         self.kingdom_selections = []            # List of subpaths user specified
         self.all_entries = []                   # List of selected entry object attributes
-        self.banned_list = banned_list          # List of extra reference file patterns to be skipped when downloading
+        self.selected_entries = []              # holds filtered subset of all_entries
+        self.banned_full = banned_list          # Full ist of extra file patterns to be skipped when downloading
+        self.banned_list = banned_list          # List of extra file patterns to be skipped when downloading
         self.date = ""                          # This should be a UniProt version (i.e. 2017.07 for July, 2017 release)        
         self.headers = headers                  # Needed for columns in tables
         self.proteome_IDs = []                  # List of unique proteome IDs
         self.selected_default = os.path.join(script_path, 'default_UniProt_species.txt')     # typical default species file path
         self.script_path = script_path          # Path location of script
+        self.contams_database = os.path.join(self.script_path, default_contams)
         self.abs_download_path = ""             # Absolute path of user selected download directory
         self.data = None                        # Data from pickle file (UniProt reference proteome entries and release date)
         self.quit_save_state = False            # Flag set if user wants to save database after quitting program
@@ -203,6 +211,29 @@ class GUI:
         except:
             pass # Catch error if no FTP connection to close (already timed out)
 
+    def _fetch_README(self):
+        """fetches the README file from FTP site with error testing and retries.
+        Has a hard failure if file cannot be downloaded."""
+        retry = 0
+        listing = []
+        while retry < 10:
+            try:
+                self.login()
+                self.ftp.cwd(self.ref_prot_path)  # move into README file location
+                self.ftp.retrlines('RETR README', listing.append)
+                print('...REAME was retrieved OK')
+                return listing
+            except:
+                # wait 15 seconds and retry
+                time.sleep(15)
+                retry += 1
+                print('...fetching README retry:', retry)
+
+        # ftp connection not working so terminate
+        if retry == 10:
+            print('...FATAL: unable to make FTP connection. Try again later.')
+            self.quit_gui(True)        
+
     # ReadMeEntry support         
     def load_all_entries(self):
         """Loads reference proteome entries from pickle file.
@@ -217,13 +248,8 @@ class GUI:
         date = self.data["Date"]
         entries = self.data["Entries"]
 
-        # check the current README file and see if pickled entries are current
-        self.login()
-        self.ftp.cwd(self.ref_prot_path)  # move into README file location
-        listing = []
-        self.ftp.retrlines('RETR README', listing.append)
-
         # Get the release version information from README
+        listing = self._fetch_README()
         for line in listing:
             if "release" in line.lower():
                 version = line.replace(',', '')
@@ -263,12 +289,8 @@ class GUI:
         if self.load_all_entries():
             return     # exits here if pickled entries were OK
         else:
-            # fetch and parse README
-            self.ftp.cwd(self.ref_prot_path)  
-            listing = []
-            self.ftp.retrlines('RETR README', listing.append)
-
             # get the release version information
+            listing = self._fetch_README()
             for line in listing:
                 if "release" in line.lower():
                     version = line.replace(',', '')
@@ -295,11 +317,27 @@ class GUI:
         for kingdom in self.kingdom_paths:
             kingdom_proteome = {}
             kingdom_path = self.ref_prot_path + kingdom
-            self.ftp.cwd(kingdom_path)  # Move into category location
 
+            retry = 0
             listing = []    # To hold file listing
-            self.ftp.retrlines('LIST', listing.append)   # Get the listing and save
+            while retry < 10:
+                try:
+                    self.login()
+                    self.ftp.cwd(kingdom_path)  # Move into category location
+                    self.ftp.retrlines('LIST', listing.append)   # Get the listing and save
+                    print('...%s listing was retrieved OK' % kingdom)
+                    break
+                except:
+                    # wait 15 seconds and retry
+                    time.sleep(15)
+                    retry += 1
+                    print('...fetching %s retry: %d' % (kingdom, retry))
 
+            # ftp connection not working so terminate
+            if retry == 10:
+                print('...FATAL: unable to make FTP connection. Try again later.')
+                self.quit_gui(True) 
+                
             # Count the number of proteomes (each has several files)
             for line in listing:
                 line = line.strip() # Want last item, so strip EOL
@@ -347,6 +385,11 @@ class GUI:
         # Filter on species name substring
         self.selected_entries = [entry for entry in self.selected_entries if species_entry in entry.species_name.lower()]
 
+    def select_entry_values(self, entry):
+        """Selects fields from entry for treeview display."""
+        return [entry.tax_ID, entry.oscode, int(entry.main_fasta),
+                int(entry.additional_fasta), entry.kingdom, entry.species_name]
+
     def get_filtered_proteome_list(self):
         """Filters reference proteome list by user specified criteria for left side display box.
         """
@@ -362,15 +405,13 @@ class GUI:
                 return None
                     
         # Only show relevant info to user in entries
-        entries = [[entry.tax_ID, int(entry.main_fasta), int(entry.additional_fasta),
-                    entry.kingdom, entry.species_name]
-                    for entry in self.selected_entries]
+        entry_values = [self.select_entry_values(entry) for entry in self.selected_entries]
 
         # Clear entries before importing
         for row in self.tree_left.get_children():
             self.tree_left.delete(row)
-        for entry in sorted(entries):
-            self.tree_left.insert('', 'end', values=entry)
+        for entry_value in sorted(entry_values):
+            self.tree_left.insert('', 'end', values=entry_value)
 
         self.update_status_bar("List updated with %s entries" % len(self.selected_entries))        
         
@@ -380,6 +421,14 @@ class GUI:
         self.reverse_contams.uncheck_all()
         self.search_species.delete(0, END)
         self.search_tax.delete(0, END)
+        self.get_filtered_proteome_list()
+
+    def browse_contams(self):
+        """Dialog to browse to non-default contaminants database."""
+        self.contams_database = fasta_lib.get_file(self.script_path,
+                                                   [('Fasta files', '*.fasta')],
+                                                    "Select a contaminants FASTA file")
+        self.contams_label.config(text=os.path.split(self.contams_database)[1])
         
     def sort_text_column(self, tv, col, reverse=False):
         """Sorts entries in treeview tables alphabetically."""
@@ -405,31 +454,31 @@ class GUI:
         # Reverse sort next time
         tv.heading(col, command=lambda col_=col: self.sort_num_column(tv, col_, not reverse))
     
-    def move_to_left(self):
+    def drop_from_right(self):
         """Movies entry(ies) from right treeview to left."""
         selection = self.tree_right.selection()  # Creates sets with elements "I001", etc.
         
         for selected in selection:
-            selected_copy = self.tree_right.item(selected)  # Creates a set of dicts
+            selected_copy = self.tree_right.item(selected)
             self.tree_right.delete(selected)
-            self.tree_left.insert('', 'end', values=selected_copy['values'])
-        try:
-            self.update_status_bar("{} dropped".format(selected_copy['values'][-1]))
-        except UnboundLocalError:
-            print("User tried to remove a proteome even though none was selected!")
+            try:
+                self.update_status_bar("{} dropped".format(selected_copy['values'][-1]))
+            except UnboundLocalError:
+                print("User tried to remove a proteome even though none was selected!")
 
-    def move_to_right(self):
+    def copy_to_right(self):
         """Movies entry(ies) from left treeview to right."""
         selection = self.tree_left.selection()  
         
+        right_tree_data = [self.tree_right.item(x) for x in self.tree_right.get_children()]  # contents of right rows   
         for selected in selection:
-            selected_copy = self.tree_left.item(selected)
-            self.tree_left.delete(selected)
-            self.tree_right.insert('', 'end', values=selected_copy['values'])
-        try:
-            self.update_status_bar("{} added".format(selected_copy['values'][-1]))  # Species name should be last
-        except UnboundLocalError:
-            print("User tried to add a proteome even though none was selected!")
+            selected_copy = self.tree_left.item(selected) # contents of left selection
+            if not selected_copy in right_tree_data:
+                self.tree_right.insert('', 'end', values=selected_copy['values'])
+            try:
+                self.update_status_bar("{} added".format(selected_copy['values'][-1]))  # Species name should be last
+            except UnboundLocalError:
+                print("User tried to add a proteome even though none was selected!")
 
     # loading and saving default species list functions       
     def save_defaults(self, overwrite=False):
@@ -468,6 +517,13 @@ class GUI:
                                                    'Select a default species list file')
         self.load_defaults()
                         
+    def index_all_entries(self):
+        """Creates a dictionary of display values for species from updated entries."""
+        species_values = {}
+        for entry in self.all_entries:
+            species_values[int(entry.tax_ID)] = self.select_entry_values(entry)
+        return species_values
+
     def load_defaults(self, display=True):
         """Load right species list from file."""
         try:
@@ -491,17 +547,15 @@ class GUI:
             for row in self.tree_right.get_children():
                     self.tree_right.delete(row)
 
+        # get updated values for default species
+        species_values = self.index_all_entries()
+
         loaded_databases = []
         for database in databases:
             # load the right list from the defaults
             database = database[1:-1]   # trim brackets
             tax = int(database.split(', ')[0])
-            canonical = int(database.split(', ')[1])
-            additional = int(database.split(', ')[2])
-            kingdom = database.split(', ')[3][1:-1]     # trim quotes
-            species_name = database.split(', ')[4][1:-1]    # trim quotes
-            species_name = species_name.rstrip(r"""'\"*""")
-            loaded_databases.append([tax, canonical, additional, kingdom, species_name])
+            loaded_databases.append(species_values[tax])
 
         loaded_databases = sorted(loaded_databases, key=lambda x: x[0]) # sort DBs by taxon
 
@@ -511,7 +565,7 @@ class GUI:
 
         return loaded_databases
 
-    def update_defaults(self):
+    def update_saved_defaults(self):
         """If the entries in right tree do not match current defaults file, ask user to save updated list"""
         right_tree_items = [self.tree_right.item(entry)['values'] for entry in self.tree_right.get_children()]
 
@@ -552,13 +606,26 @@ class GUI:
         if target_contams:
             forward = True
 
-##        # no longer have option for target/decoy without contams
-##        if not contams:
-##            contam_location = os.path.join(contam_location, "block")  # Prevent script from finding contams file
-
         if decoy_contams or target_contams:        
             reverse_fasta.main(fasta_file, forward, reverse, both, contam_path=contam_location)
-            
+
+    def download_all_databases(self):
+        """Fetches the canonical only database files for the selected species."""
+        # update the banned list
+        self.banned_list = list(self.banned_full) # need a copy of the list
+        self.banned_list.remove("additional")
+
+        # downlaod
+        self.download_databases()
+             
+    def download_canonical_databases(self):
+        """Fetches the canonical only database files for the selected species."""
+        # update the banned list
+        self.banned_list = list(self.banned_full) # need a copy of the list
+        
+        # downlaod
+        self.download_databases()
+
     def download_databases(self):
         """Fetches the database files for the selected species."""
         self.login()    # Refresh the FTP connection
@@ -702,7 +769,7 @@ class GUI:
         
         # Add forward/reverse/contams
         for file in combined_files:
-            self.database_processing(file, self.script_path) # assumes contams FASTA file in location with script
+            self.database_processing(file, self.contams_database)
                         
     def update_status_bar(self, _text):
         """Updates status bar with new text"""
@@ -710,10 +777,11 @@ class GUI:
         self.status_bar.update_idletasks()
         self.root.after(100)
            
-    def quit_gui(self):
+    def quit_gui(self, hard_exit=False):
         """Quits the GUI application."""
         self.logout()   # Close the FTP connection
-        self.update_defaults()
+        if not hard_exit:
+            self.update_saved_defaults()
         self.root.withdraw()
         self.root.update_idletasks()
         self.root.destroy()
@@ -728,65 +796,79 @@ class GUI:
         self.root.geometry("1250x750+150+50")
         self.root.minsize(1250, 650)
 
-        # Check boxes and Import button Frame
-        ## Main Frame
-        option_frame = LabelFrame(self.root, text="Options")
+        # Main options: species filters, final database prepping
+        option_frame = Frame(self.root)
         option_frame.pack(side=TOP, padx=5, pady=5)
 
-        ## Kingdom Frame
-        kingdom_frame = LabelFrame(option_frame, text="Kingdoms")
-        kingdom_frame.pack(side=TOP, fill=BOTH, expand=YES, padx=5, pady=5)
+        # Kingdom Frame
+        kingdom_frame = LabelFrame(option_frame, text="Kingdoms:")
+        kingdom_frame.pack(side=TOP, fill=BOTH, expand=YES, padx=0, pady=5)
 
-        ## Generate checkboxes
+        # Generate checkboxes
         self.checkboxes = CheckBoxes(kingdom_frame, self.kingdom_paths)
         self.checkboxes.pack(side=LEFT, fill=X)
         self.checkboxes.check_all()
 
-        # Search Window
-        ## Main Frame
-        search_window_frame = LabelFrame(option_frame, text="Additional Filters")
-        search_window_frame.pack(side=TOP, fill=BOTH, expand=YES, padx=5, pady=5)
+        # Species filter Frame
+        search_window_frame = LabelFrame(option_frame, text="Species Filters:")
+        search_window_frame.pack(side=TOP, fill=BOTH, expand=YES, padx=0, pady=5)
 
-        # Create search bars/buttons
-        # Species Search Bar
+        # Create species filter field
         species_frame = Frame(search_window_frame)
-        species_frame.pack(fill=X, padx=5, pady=5)
+        species_frame.pack(fill=X, padx=5, pady=1)
         species_label = Label(species_frame, text="Species Name:")
-        species_label.pack(side=LEFT, padx=5, pady=5)
+        species_label.pack(side=LEFT, padx=5, pady=1)
         self.search_species = Entry(species_frame)
-        self.search_species.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=5)        
+        self.search_species.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=1)        
 
-        # Taxonomy ID Search Bar
+        # Taxonomy ID filter field
         tax_frame = Frame(search_window_frame)
-        tax_frame.pack(fill=X, padx=5, pady=5)
+        tax_frame.pack(fill=X, padx=5, pady=1)
         tax_label = Label(tax_frame, text="Taxonomy ID:")
-        tax_label.pack(side=LEFT, padx=5, pady=5)
+        tax_label.pack(side=LEFT, padx=5, pady=1)
         self.search_tax = Entry(tax_frame)
-        self.search_tax.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=5)
+        self.search_tax.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=1)
 
-        ## Show filtered list button and reset filters button
+        # Show filtered list button and reset filters button
         filter_button = Button(search_window_frame, text="Show Filtered List", command=self.get_filtered_proteome_list)
-        filter_button.pack(side=LEFT, padx=10, pady=10)
+        filter_button.pack(side=LEFT, padx=10, pady=5)
         clear_button = Button(search_window_frame, text="Reset Filters", command=self.reset_filters)
-        clear_button.pack(side=RIGHT, padx=10, pady=10)
+        clear_button.pack(side=RIGHT, padx=10, pady=5)
 
         # Checkboxes for contams and/or decoy databases
-        add_seq_frame = LabelFrame(option_frame, text="Additional Database Processing")
-        add_seq_frame.pack(fill=X, padx=5, pady=5)
+        add_seq_frame = LabelFrame(option_frame, text="Create Additional Databases:")
+        add_seq_frame.pack(fill=X, padx=0, pady=5)
         
         self.reverse_contams = CheckBoxes(add_seq_frame, ["Target+Decoy w/Contams", "Target w/Contams"])
-        self.reverse_contams.pack(side = LEFT, fill=X, padx=5, pady=5)
+        self.reverse_contams.pack(side = LEFT, fill=X, padx=5, pady=1)
 
-        # Entry mover-thingy Frame
-        ## Main Frame
+        # option to change the contams database
+        contams_frame = Frame(option_frame)
+        contams_frame.pack(fill=BOTH, expand=YES, padx=10, pady=1)
+        self.contams_label = Label(contams_frame, text=os.path.split(self.contams_database)[1])
+        self.contams_label.pack(side=LEFT, padx=5, pady=1)
+        contams_button = Button(contams_frame, text="Change Contaminants Database", command=self.browse_contams)
+        contams_button.pack(side=LEFT, padx=5, pady=1)
+
+        # radio buttons for shorter or longer file/folder names
+        folder_names = LabelFrame(option_frame, text="Folder Names:")
+        folder_names.pack(fill=X, padx=0, pady=10)
+        self.folder_names = IntVar()
+        self.create_radiobuttons(folder_names, 'Folder and filenames will include:   ',
+                                 [('OSCODE', 0), ('Latin Names', 1), ('None', 2)],
+                                 self.folder_names).pack(fill=X, padx=10, pady=5, expand=YES)
+        self.folder_names.set(0)
+
+        # All database choice (left tree) and desired databases to download (right tree)
+        # Main Frame
         entry_frame = LabelFrame(self.root, text="Entries")
         entry_frame.pack(side=TOP, fill=BOTH, expand=YES, padx=5, pady=5)
 
         # set tighter columns so species is easier to see
-        col_width = {"TAX ID": 80, "CANONICAL #": 80, "ISOFORM #": 80}
-        int_cols = ["TAX ID", "CANONICAL #", "ISOFORM #"]
+        col_width = {"TAX ID": 70, "OSCODE": 70, "CANONICAL #": 70, "ISOFORM #": 70}
+        int_cols = ["TAX ID", "OSCODE", "CANONICAL #", "ISOFORM #"]
 
-        ## Left Window
+        # Left Window
         left_tree_frame = LabelFrame(entry_frame, text="Reference Proteomes")
         left_tree_frame.pack(fill=BOTH, expand=YES, side=LEFT, padx=5, pady=10)
 
@@ -817,17 +899,18 @@ class GUI:
         left_scroll_Y.config(command = self.tree_left.yview)
         left_scroll_X.config(command = self.tree_left.xview)
                 
-        ## Menu Buttons
+        # Menu Buttons
         buttonFrame = LabelFrame(entry_frame, text="Menu Buttons")
         buttonFrame.pack(side=LEFT)
 
         # Set button attributes
         button_names = ["Add Proteome(s)", "Drop Proteome(s)",
                         "Save Default Species", "Load Default Species",
-                        "Download", "Quit"]
-        button_commands = [self.move_to_right, self.move_to_left,
+                        "Download Canonical", "Download Canonical+Isoforms", "Quit"]
+        button_commands = [self.copy_to_right, self.drop_from_right,
                            self.save_defaults, self.select_defaults_and_load,
-                           self.download_databases, self.quit_gui]
+                           self.download_canonical_databases, self.download_all_databases,
+                           self.quit_gui]
         btn_width = 18
 
         # Create buttons
@@ -837,7 +920,7 @@ class GUI:
             button.pack()
             button.config(width=btn_width)
 
-        ## Right Window
+        # Right Window
         right_tree_frame = LabelFrame(entry_frame, text="Selected Proteomes")
         right_tree_frame.pack(fill=BOTH, expand=YES, side=RIGHT, padx=5, pady=10)
         
@@ -883,6 +966,13 @@ class GUI:
         self.get_filtered_proteome_list()   # show the full left list to start
         self.root.mainloop()
 
+    def create_radiobuttons(self, parent, label, buttons, variable):
+        """Creates a radiobutton widget."""
+        frame = Frame(parent)
+        Label(frame, text=label).pack(side=LEFT)
+        for text, value in (buttons):
+            Radiobutton(frame, text=text, variable=variable, value=value).pack(side=LEFT)
+        return frame
 
 # Main Function
 if __name__ == '__main__':
@@ -890,13 +980,14 @@ if __name__ == '__main__':
     URL = 'ftp.uniprot.org'
     REF_PROT_PATH = '/pub/databases/uniprot/current_release/knowledgebase/reference_proteomes/'
     KINGDOM_PATHS = ('Archaea', 'Bacteria', 'Eukaryota', 'Viruses')
-    HEADERS = ["TAX ID", "CANONICAL #", "ISOFORM #", "KINGDOM", "SPECIES NAME"]
-    BANNED = ["DNA", "gene2acc", "idmapping"]
+    HEADERS = ["TAX ID", "OSCODE", "CANONICAL #", "ISOFORM #", "KINGDOM", "SPECIES NAME"]
+    BANNED = ["DNA", "gene2acc", "idmapping", "additional"]
 
     # get location where script is launched from on local computer
     SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
+    DEFAULT_CONTAMS = 'Thermo_contams_fixed.fasta'
     
-    gui = GUI(URL, REF_PROT_PATH, KINGDOM_PATHS, HEADERS, BANNED, SCRIPT_PATH)
+    gui = GUI(URL, REF_PROT_PATH, KINGDOM_PATHS, HEADERS, BANNED, SCRIPT_PATH, DEFAULT_CONTAMS)
     gui.create_gui()
 
 # End

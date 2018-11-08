@@ -92,18 +92,18 @@ class AnimalEntry:
         self.latin_name = l_n           # Species Latin Name (string)
         self.tax_ID = taxid             # Taxonomy ID Number (int)
         self.ensembl_assembly = e_a     # Ensembl assembly (string?)
-        self.accession = acc            # 
-        self.genebuild_method = g_m     # 
-        self.variation_database = v_d   # 
-        self.reg_database = r_d         # 
-        self.pre_assembly = p_a         #
+        self.accession = acc            # Ensembl accession
+        self.genebuild_method = g_m     # Gene build method
+        self.variation_database = v_d   # Variation database name
+        self.reg_database = r_d         # Regular database
+        self.pre_assembly = p_a         # Pre-assembly information
         self.folder_name = ""           # Folder Name for each species
         self.ftp_file_path = ""         # Species ftp download path
 
 # Build GUI
 class GUI:
     """Main GUI class for application."""
-    def __init__(self, url, prot_path, text, headers, banned_list, script_location):
+    def __init__(self, url, prot_path, text, headers, banned_list, script_location, default_contams):
         """Create object and set some state attributes."""
         self.url = url                          # Url of Ensembl FTP site
         self.ensembl_prot_path = prot_path      # Location of Ensembl databases
@@ -119,8 +119,9 @@ class GUI:
         self.headers = headers                  # Needed for columns in tables
         self.proteome_IDs = []                  # List of unique proteome IDs
         self.script_location = script_location  # Script path location
+        self.contams_database = os.path.join(self.script_location, default_contams)
         self.selected_default = os.path.join(script_location, 'default_Ensembl_species.txt')     # typical default species file path
-        self.data = None                        # Holds unpickled information
+        self.data = None                        # Holds unpickled information saved from last session
         self.quit_save_state = "not triggered"  # Trigger for updating defaults file on quit status
         
         # List of characters that cannot be in folder names
@@ -195,10 +196,10 @@ class GUI:
         self.data = self.unpickle_entries()
         self.release = self.data["Release"]
         self.version = "v{}".format(self.release)
-        self.animal_list = self.data["Entries"]
 
         # if pickled version matches current database version, then load entries from pickle file
         if self.release == release:
+            self.animal_list = self.data["Entries"]
             return True
         else:
             print('saved release is out-of-date')
@@ -366,6 +367,14 @@ class GUI:
         self.search_species.delete(0, END)
         self.search_tax.delete(0, END)
         self.reverse_contams.uncheck_all()
+        self.get_filtered_proteome_list()
+
+    def browse_contams(self):
+        """Dialog to browse to non-default contaminants database."""
+        self.contams_database = fasta_lib.get_file(self.script_location,
+                                                   [('Fasta files', '*.fasta')],
+                                                    "Select a contaminants FASTA file")
+        self.contams_label.config(text=os.path.split(self.contams_database)[1])
         
     def sort_text_column(self, tv, col, reverse=False):
         """Sorts entries in treeview tables alphabetically."""
@@ -391,24 +400,23 @@ class GUI:
         # reverse sort next time
         tv.heading(col, command=lambda col_=col: self.sort_num_column(tv, col_, not reverse))
     
-    def move_to_left(self):
+    def drop_from_right(self):
         """Movies entry(ies) from right treeview to left."""
         selection = self.tree_right.selection()  # creates sets with elements "I001", etc.
         
         for selected in selection:
-            selected_copy = self.tree_right.item(selected)  # creates a set of dicts
             self.tree_right.delete(selected)
-            self.tree_left.insert('', 'end', values=selected_copy['values'])
         self.update_status_bar("{} dropped".format(selected_copy['values'][0]))
 
-    def move_to_right(self):
+    def copy_to_right(self):
         """Movies entry(ies) from left treeview to right."""
         selection = self.tree_left.selection()  
-        
+
+        right_tree_data = [self.tree_right.item(x) for x in self.tree_right.get_children()] # contents of right rows    
         for selected in selection:
-            selected_copy = self.tree_left.item(selected)
-            self.tree_left.delete(selected)
-            self.tree_right.insert('', 'end', values=selected_copy['values'])
+            selected_copy = self.tree_left.item(selected) # contents of left selection
+            if not selected_copy in right_tree_data:
+                self.tree_right.insert('', 'end', values=selected_copy['values'])
         self.update_status_bar("{} added".format(selected_copy['values'][0]))  # Species name should be first
 
     # loading and saving species list function
@@ -588,7 +596,8 @@ class GUI:
         new_fasta_file = Ensembl_fixer.main(file_location, up_one=True)
 
         # chdir into correct folder and make sure all file paths are set up correctly
-        contam_location = self.script_location
+        contam_location = self.contams_database
+        print('contams:', contam_location)
         ensembl_dir_name = r"Ensembl_v{}".format(self.release)
         os.chdir(os.path.join(self.abs_dl_path, ensembl_dir_name))
         
@@ -611,11 +620,7 @@ class GUI:
             both = True
         if target_contams:
             forward = True
-
-##        # no longer have an option that gets a target/decoy DB without contaminants
-##        if not contams:
-##            contam_location = os.path.join(contam_location, "block")  # Prevent script from finding contams file
-
+            
         if decoy_contams or target_contams:        
             reverse_fasta.main(fasta_file, forward, reverse, both, contam_path=contam_location)
         
@@ -652,13 +657,14 @@ class GUI:
 
         # Check boxes and Import button Frame
         ## Main Frame
-        option_frame = LabelFrame(self.root, text="Options")
-        option_frame.pack(side=TOP, padx=5, pady=5)
+##        option_frame = LabelFrame(self.root, text="Options")
+        option_frame = Frame(self.root)
+        option_frame.pack(side=TOP, padx=1, pady=5)
         
         # Search Window
         ## Main Frame
-        search_window_frame = LabelFrame(option_frame, text="Filters")
-        search_window_frame.pack(side=TOP, fill=BOTH, expand=YES, padx=5, pady=5)
+        search_window_frame = LabelFrame(option_frame, text="Filters:")
+        search_window_frame.pack(side=TOP, fill=BOTH, expand=YES, padx=0, pady=5)
         
         # Create search bars/buttons
         species_frame = Frame(search_window_frame)
@@ -683,19 +689,28 @@ class GUI:
 
         # Additional Database Processing Frame
         ## Main Frame
-        rev_frame = LabelFrame(option_frame, text="Additional Database Processing")
-        rev_frame.pack(fill=BOTH, expand=YES, padx=5, pady=5)
-        
+        rev_frame = LabelFrame(option_frame, text="Create Additional Databases:")
+        rev_frame.pack(fill=BOTH, expand=YES, padx=1, pady=5)
+
+        # options as check boxes
         self.reverse_contams = CheckBoxes(rev_frame, ["Target+Decoy w/Contams", "Target w/Contams"])
         self.reverse_contams.pack(side = LEFT, fill=X, padx=5, pady=5)
 
+        # option to change the contams database
+        contams_frame = Frame(option_frame)
+        contams_frame.pack(fill=BOTH, expand=YES, padx=10, pady=5)
+        self.contams_label = Label(contams_frame, text=os.path.split(self.contams_database)[1])
+        self.contams_label.pack(side=LEFT, padx=5, pady=5)
+        contams_button = Button(contams_frame, text="Change Contaminants Database", command=self.browse_contams)
+        contams_button.pack(side=LEFT, padx=5, pady=5)
+
         # Entry mover-thingy Frame
         ## Main Frame
-        entry_frame = LabelFrame(self.root, text="Entries")
+        entry_frame = LabelFrame(self.root, text="Ensembl Databases")
         entry_frame.pack(side=TOP, fill=BOTH, expand=YES, padx=5, pady=5)
 
         ## Left Window
-        left_tree_frame = LabelFrame(entry_frame, text="Reference Proteomes")
+        left_tree_frame = LabelFrame(entry_frame, text="Ensembl Proteomes")
         left_tree_frame.pack(fill=BOTH, expand=YES, side=LEFT, padx=5, pady=10)
 
         # Create TreeView
@@ -731,7 +746,7 @@ class GUI:
         button_names = ["Add Proteome(s)", "Drop Proteome(s)",
                         "Save Default Species", "Load Default Species",
                         "Download", "Quit"]
-        button_commands = [self.move_to_right, self.move_to_left,
+        button_commands = [self.copy_to_right, self.drop_from_right,
                            self.save_defaults, self.select_defaults_and_load,
                            self.download_databases, self.quit_gui]
         btn_width = 18
@@ -797,6 +812,10 @@ if __name__ == '__main__':
     HEADERS = ["COMMON NAME", "LATIN NAME", "TAX ID", "ENSEMBL ASSEMBLY"]
     BANNED = ["README", "CHECKSUMS", "abinitio.fa.gz"]
     SCRIPT_LOCATION = os.path.dirname(os.path.realpath(__file__))
+    DEFAULT_CONTAMS = 'Thermo_contams_fixed.fasta'
+
+    # message to user
+    print('Starting Ensembl_proteome_manager.py - querying Ensembl...')
 
     # Get HTML page from Ensembl for parsing
     PARSE_URL = r'http://www.ensembl.org/info/about/species.html'
@@ -805,5 +824,5 @@ if __name__ == '__main__':
     TEXT = DATA.decode('utf-8')
 
     # create the GUI object and start program    
-    gui = GUI(FTP_URL, PROT_PATH, TEXT, HEADERS, BANNED, SCRIPT_LOCATION)
+    gui = GUI(FTP_URL, PROT_PATH, TEXT, HEADERS, BANNED, SCRIPT_LOCATION, DEFAULT_CONTAMS)
     gui.create_gui()

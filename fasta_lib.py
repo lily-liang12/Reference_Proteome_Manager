@@ -813,7 +813,7 @@ class FastaReader:
                     
         # return (protein info retained in next_protein)
         return True
-    
+        
     # end class
 
     
