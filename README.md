@@ -1,6 +1,6 @@
 # Reference_Proteome_Manager project
 There are two main programs to allow proteomics researchers to download and maintain protein databases.
- 
+
 "UniProt_reference_proteome_manager.py" allows users to select from the UniProt
 [reference proteomes](http://www.uniprot.org/help/reference_proteome) available for FTP download (ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/reference_proteomes/). There are many more completed proteomes (over 150 thousand) than
 reference proteomes (less than 10 thousand). Only reference proteomes are supported.
@@ -12,8 +12,8 @@ created (they contain "all" in their names).
 
 "Ensembl_proteome_manager.py" lets users download the main Ensembl vertebrate protein
 databases. There are over 70 species available (mid 2017). Ensembl protein databases
-are high quality, complete proteomes. Ensembl is gene-centric and the protein sequences are easy to map to their respective genes. Ensembl genomes are often used in transcriptomics and comparing trasncriptomic and proteomic results may be easier if Ensembl protein databases are used. Protein description strings in Ensembl databases are 
-a little verbose and a reformatting step is performed to make the descriptions more 
+are high quality, complete proteomes. Ensembl is gene-centric and the protein sequences are easy to map to their respective genes. Ensembl genomes are often used in transcriptomics and comparing trasncriptomic and proteomic results may be easier if Ensembl protein databases are used. Protein description strings in Ensembl databases are
+a little verbose and a reformatting step is performed to make the descriptions more
 readable.
 
 Both programs support file/folder creation and naming to help manage your protein
@@ -29,8 +29,8 @@ current program versions but most of the information should be up-to-date.
 
 ## Getting Started
 ### Prerequisites
-The programs were written using Python v.3.6.2.
-They have been tested with Windows 7, Windows 10, and macOS 10.12.6.
+The programs were written using Python v.3.6 and later.
+They have been tested with Windows 7, Windows 10, and macOS 10.14.
 The dependent files are "fasta_lib_Py3.py", "reverse_fasta.py", and "Thermo_contams_fixed.fasta" that are required for either program to run with all features. Many program features will work without a contaminants FASTA file. A different contaninants FASTA file can be used provided the name is kept as
 "Thermo_contams_fixed.fasta" or if the "reverse_fasta.py" script source file is modified.
 
@@ -41,7 +41,7 @@ be an issue. Parsing protein accessions with regular expressions is not a good i
 unless thorough testing is performed. Running a search engine is not proper testing!
 
 ### Installing
-Click [here](https://www.python.org/downloads/release/python-362/) to download Python 3.6.2
+Click [here](https://www.python.org/downloads/) to download the latest Python 3, or you can install a scientific Python distribution like [Anaconda](https://www.anaconda.com/distribution/).
 
 Download this repo as a .zip file or clone it to access the files.
 
@@ -53,4 +53,6 @@ Download this repo as a .zip file or clone it to access the files.
 This project is licensed under the MIT License.
 
 ## Updates and bug fixes
-- Feb. 28, 2018 (PW): UniProt FTP README file layout changed and entries were not getting read
+- Feb. 28, 2018 (PW): UniProt FTP README file layout changed and entries were not getting read.
+
+- Nov. 8, 2018 (PW): Some minor GUI improvements and support for different contaminant databases. Has some retry loops for better FTP connectivity.
