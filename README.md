@@ -25,8 +25,8 @@ readable.
 
 The programs were written using Python v.3.6 and later.
 They have been tested with Windows 7, Windows 10, and macOS 10.14.
-The dependent files are "fasta_lib_Py3.py", "reverse_fasta.py", and "Thermo_contams_fixed.fasta" that are required for either program to run with all features. Many program features will work without a contaminants FASTA file. A different contaninants FASTA file can be used provided the name is kept as
-"Thermo_contams_fixed.fasta" or if the "reverse_fasta.py" script source file is modified.
+The dependent files are "fasta_lib.py", "reverse_fasta.py", and "Thermo_contams.fasta" that are required for either program to run with all features. Many program features will work without a contaminants FASTA file. A different contaninants FASTA file can be used provided the name is kept as
+"Thermo_contams.fasta" or if the "reverse_fasta.py" script source file is modified.
 
 Note: if the FASTA file accessions will be processed by a regular expression, the
 accession format for contaminants should be consistent with the main FASTA file.
