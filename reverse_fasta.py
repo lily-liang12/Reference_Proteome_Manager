@@ -52,10 +52,10 @@ def main(fasta_file, forward=False, reverse=False, both=True, log_obj=None, cont
     decoy_string = 'REV_'   # the string to denote decoy sequences
     ######################################
     # Change default contaminants file name here:
-    CONTAMS = 'Thermo_contams_fixed.fasta'
+    CONTAMS = 'Thermo_contams.fasta'
     # or pass in a "contams_path"
     ######################################
-    
+
     # open the "forward" and "reversed" output files
     if fasta_file.lower().endswith('.gz'):
         _file = os.path.splitext(fasta_file[:-3])[0]
@@ -68,14 +68,14 @@ def main(fasta_file, forward=False, reverse=False, both=True, log_obj=None, cont
 
     # create the name for the concatenated file (if later needed)
     both_name = _file + '_both.fasta'
-    
+
     # create a log file to mirror screen output
     _folder = os.path.split(fasta_file)[0]
     if not log_obj:
         log_obj = open(os.path.join(_folder, 'fasta_utilities.log'), 'a')
     write = [None, log_obj]
     fasta_lib.time_stamp_logfile('\n>>> starting: reverse_fasta.py', log_obj)
-    
+
     # create instances protein object and initialize counter
     prot = fasta_lib.Protein()
     pcount = 0
@@ -94,7 +94,7 @@ def main(fasta_file, forward=False, reverse=False, both=True, log_obj=None, cont
         _file = contam_path
     elif os.path.isdir(contam_path) and os.path.exists(os.path.join(contam_path, CONTAMS)):
         _file = os.path.join(contam_path, CONTAMS)
-        
+
     # create reader and add contaminants (if contams file was found)
     if _file:
         f = fasta_lib.FastaReader(_file)
@@ -106,13 +106,13 @@ def main(fasta_file, forward=False, reverse=False, both=True, log_obj=None, cont
         for obj in write:
             print('...there were %s contaminant entries in %s' %
                   ("{0:,d}".format(pcount), os.path.split(_file)[1]), file=obj)
-    else:        
+    else:
         for obj in write:
             print('...WARNING: contaminants were not added', file=obj)
-        
+
     # read proteins until EOF and write proteins to "forward" and "reversed" files
     f = fasta_lib.FastaReader(fasta_file)
-    
+
     # error checking slows program execution, turn on if needed.
     # Reading and writing sequences always removes spaces and blank lines.
     while f.readNextProtein(prot, check_for_errs=False):
@@ -122,7 +122,7 @@ def main(fasta_file, forward=False, reverse=False, both=True, log_obj=None, cont
         rev.printProtein(rev_file_obj)   # write to "reversed" file
     for_file_obj.close()
     rev_file_obj.close()
-    
+
     # make concatenated output file if desired and print summary stats
     if both:
         both_file_obj = open(both_name, 'w')
@@ -140,7 +140,7 @@ def main(fasta_file, forward=False, reverse=False, both=True, log_obj=None, cont
         for obj in write:
             print('...%s total proteins written to %s' %
                   ("{0:,d}".format(2*pcount), os.path.split(both_name)[1]), file=obj)
-    
+
     if forward:
         for obj in write:
             print('...%s proteins written to %s' %
@@ -149,7 +149,7 @@ def main(fasta_file, forward=False, reverse=False, both=True, log_obj=None, cont
         for obj in write:
             print('...%s proteins reversed and written to %s' %
                   ("{0:,d}".format(pcount), os.path.split(rev_name)[1]), file=obj)
-    
+
     # close files and delete unwanted files
     for_file_obj.close()
     rev_file_obj.close()
@@ -189,7 +189,7 @@ if __name__ == '__main__':
     parser.add_argument('files', help='list of FASTA files to process', nargs='*')
 
     args = parser.parse_args()
-        
+
     if len(sys.argv) > 1:   # options set from command line
         forward = args.forward
         reverse = args.reverse
@@ -200,7 +200,7 @@ if __name__ == '__main__':
         reverse = MAKE_REVERSE
         both = MAKE_BOTH
         fasta_files = []
-    
+
     # if no FASTA files, browse to database file(s)
     if not fasta_files:
         database = r'C:\Xcalibur\database'
@@ -211,11 +211,11 @@ if __name__ == '__main__':
                                           'Select a FASTA database')
         if not fasta_files: sys.exit() # cancel button response
 
-    # print version info, etc. (here because of the loop)    
+    # print version info, etc. (here because of the loop)
     print('=================================================================')
     print(' reverse_fasta.py, v 1.1.2, written by Phil Wilmarth, OHSU, 2017 ')
     print('=================================================================')
-    
+
     # call reverse function
     os.chdir('.')   # set location to where script lives - the contaminants should be there
     for fasta_file in fasta_files:

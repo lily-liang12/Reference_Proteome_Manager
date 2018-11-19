@@ -85,7 +85,7 @@ class CheckBoxes(Frame):
         """Unchecks all checkboxes."""
         for var in self.vars:
             var.set(0)
-            
+
 class AnimalEntry:
     """Container for Ensembl proteome entries."""
     def __init__(self, c_n, l_n, taxid, e_a, acc, g_m, v_d, r_d, p_a):
@@ -139,7 +139,7 @@ class GUI:
         self.selected_default = os.path.join(script_location, 'default_Ensembl_species.txt')     # typical default species file path
         self.data = None                        # Holds unpickled information saved from last session
         self.quit_save_state = "not triggered"  # Trigger for updating defaults file on quit status
-        
+
         # List of characters that cannot be in folder names
         self.illegal_characters = r"[\\#%&{}/<>*?:]"
 
@@ -158,7 +158,7 @@ class GUI:
         except:
             pass # we will get error if there is no FTP connection to close
 
-    # some parsing support        
+    # some parsing support
     def clean_common_name(self, name):
         """Removes some odd characters from common names."""
         p = re.compile(r"alt=\"(.*?)\"")
@@ -173,7 +173,7 @@ class GUI:
 
     def create_raw_table(self):
         """Finds table boundaries in the HTML page."""
-        # Setup html file to find required information 
+        # Setup html file to find required information
         # Find start and end of h3 header block
         TEXT = self.text
         if "<td" in TEXT:
@@ -225,7 +225,7 @@ class GUI:
     def parse_raw_table(self):
         """Gets Ensembl proteome entries. Looks for pickle file first and checks if current, if not fetches from web."""
         if self.load_all_entries():
-            return  # pickled entries were read in and were current            
+            return  # pickled entries were read in and were current
         else:
             print('fetching data from web')
             # Parse header into animal list
@@ -236,7 +236,7 @@ class GUI:
             for i in range(0, len(matched_groups), 9):  # Split 1D list into 2D so that each animal has 9 attributes
                 animal = matched_groups[i:i+9]
                 parsed.append(animal)
-                
+
             # We want to remove the empty space produced by alternative path in regex
             for animal in parsed:
                 for i in range(len(animal)):
@@ -260,7 +260,7 @@ class GUI:
 
                 # save animal record
                 self.animal_list.append(animal_obj)
-                
+
             self.remove_invalid_animals()   # FTP paths are set in this method
 
             # save the fetched species information
@@ -312,7 +312,7 @@ class GUI:
         self.ftp.retrlines('LIST', listing.append)  # get list of folders
         listing = [x.split()[-1].strip() for x in listing]
         return listing
-        
+
     def pickle_entries(self):
         """Saves full left display list to make subsequent launches faster."""
         text = {"Release": self.release, "Entries": self.animal_list}
@@ -347,9 +347,9 @@ class GUI:
         self.selected_entries = [entry for entry in self.selected_entries
                                  if species_entry in entry.common_name.lower()
                                  or species_entry in entry.latin_name.lower()]
-        
+
     def get_filtered_proteome_list(self):
-        """Calls relevant methods to create filtered lists, then finds intersection of the lists, 
+        """Calls relevant methods to create filtered lists, then finds intersection of the lists,
         and outputs relevant info to user
         """
         self.filter_entries()
@@ -362,7 +362,7 @@ class GUI:
                 self.selected_entries = self.animal_list
             else:
                 return None
-                    
+
         # Only show relevant info to user in entries
         entries = [[entry.common_name, entry.latin_name,
                     entry.tax_ID, entry.ensembl_assembly]
@@ -375,7 +375,7 @@ class GUI:
             self.tree_left.insert('', 'end', values=entry)
 
         self.update_status_bar("List updated with %s entries" % len(self.selected_entries))
-        
+
     def reset_filters(self):
         """Resets filters to defaults."""
         self.search_species.delete(0, END)
@@ -389,7 +389,7 @@ class GUI:
                                                    [('Fasta files', '*.fasta')],
                                                     "Select a contaminants FASTA file")
         self.contams_label.config(text=os.path.split(self.contams_database)[1])
-        
+
     def sort_text_column(self, tv, col, reverse=False):
         """Sorts entries in treeview tables alphabetically."""
         l = [(tv.set(k, col), k) for k in tv.get_children('')]
@@ -401,7 +401,7 @@ class GUI:
 
         # reverse sort next time
         tv.heading(col, command=lambda col_=col: self.sort_text_column(tv, col_, not reverse))
-    
+
     def sort_num_column(self, tv, col, reverse=False):
         """Sorts entries in treeview tables numerically."""
         l = [(tv.set(k, col), k) for k in tv.get_children('')]
@@ -413,11 +413,11 @@ class GUI:
 
         # reverse sort next time
         tv.heading(col, command=lambda col_=col: self.sort_num_column(tv, col_, not reverse))
-    
+
     def drop_from_right(self):
         """Movies entry(ies) from right treeview to left."""
         selection = self.tree_right.selection()  # creates sets with elements "I001", etc.
-        
+
         for selected in selection:
             selected_copy = self.tree_right.item(selected)
             self.tree_right.delete(selected)
@@ -428,9 +428,9 @@ class GUI:
 
     def copy_to_right(self):
         """Movies entry(ies) from left treeview to right."""
-        selection = self.tree_left.selection()  
+        selection = self.tree_left.selection()
 
-        right_tree_data = [self.tree_right.item(x) for x in self.tree_right.get_children()] # contents of right rows    
+        right_tree_data = [self.tree_right.item(x) for x in self.tree_right.get_children()] # contents of right rows
         for selected in selection:
             selected_copy = self.tree_left.item(selected) # contents of left selection
             if not selected_copy in right_tree_data:
@@ -455,7 +455,7 @@ class GUI:
                 databases = [self.tree_right.item(item)['values'] for item in items]
                 for database in databases:
                     database[-1] = database[-1].rstrip(r"""\'"*""") # seem to accumulate EOL characters
-                
+
                 # Remove duplicates
                 db_set = set(tuple(x) for x in databases)
                 databases = sorted([list(x) for x in db_set], key=lambda y: y[0]) # sort DBs by common name
@@ -468,21 +468,21 @@ class GUI:
                 self.status_bar.config(text="Databases saved to species text file")
             except OSError:
                 messagebox.showwarning("Invalid Filename!", "Cannot save species list to selected folder!")
-        
+
     def select_defaults_and_load(self):
         """Let user browse to a defaults file and load the species."""
         self.selected_default = fasta_lib.get_file(self.script_location,
                                                    [('Text files', '*.txt')],
                                                    'Select a default Ensembl species list file')
         self.load_defaults()
-                        
+
     def load_defaults(self, display=True):
         """Loads right species list from file."""
         try:
             with open(self.selected_default, "r") as defaults_txt:
                 databases = defaults_txt.readlines()
             self.status_bar.config(text="default species list imported.")
-                
+
         except FileNotFoundError:
             self.update_status_bar("No defaults imported/defaults could not be found")
             return None
@@ -492,13 +492,13 @@ class GUI:
         except TypeError:
             self.update_status_bar("No defaults imported/defaults could not be found")
             return None
-        
+
         # Clear selected databases before importing
         if display:
             for row in self.tree_right.get_children():
                     self.tree_right.delete(row)
 
-        loaded_databases = []    
+        loaded_databases = []
         for database in databases:
             # load the right list from the defaults
             database = database[1:-1] # trim square brackets
@@ -524,7 +524,7 @@ class GUI:
         # Remove duplicates
         db_set = set(tuple(x) for x in right_tree_items)
         right_tree_items = sorted([list(x) for x in db_set], key=lambda y: y[0]) # sort DBs by common name
-                
+
         # compare current right-side databases to stored defaults
         if right_tree_items != self.load_defaults(display=False):
             if os.path.exists(self.selected_default):
@@ -533,22 +533,22 @@ class GUI:
                 if answer:
                     self.quit_save_state = True
                     self.save_defaults(overwrite=True)
-            else:              
+            else:
                 answer = messagebox.askyesno("Unsaved Progress",
                                              "Save right species list for next time?")
                 if answer:
                     self.quit_save_state = True
                     self.save_defaults(overwrite=True)
-            
+
     def download_databases(self):
         """Fetches the database files for the selected species."""
         self.login()    # refresh the FTP connection
-        
+
         # throw warning if no databases selected
         if len(self.tree_right.get_children()) == 0:
                messagebox.showwarning("Empty Selection", "No databases were selected for download!")
                return None  # exit function
-            
+
         # get parent folder location for database download
         db_default = os.getcwd()
         self.abs_dl_path = filedialog.askdirectory(parent=self.root, initialdir=db_default,
@@ -572,7 +572,7 @@ class GUI:
         set_download_tuples = list(set(download_tuples))
         if len(download_tuples) != len(set_download_tuples):
             messagebox.showwarning("Duplicates found!", "Duplicate databases were selected and will be ignored!")
-            
+
         # Create a list of selected animal objects from list of tax id's selected
         download_entries = [entry for _tuple in download_tuples for entry in self.animal_list
                             if (int(_tuple[1]) == int(entry.tax_ID)) and
@@ -589,16 +589,16 @@ class GUI:
                 os.chdir(download_folder)
             except FileExistsError:
                 os.chdir(download_folder)
-                
+
             # Create a list of all files in each species folder
             listing = []
             self.ftp.retrlines('LIST', listing.append)
-            
+
             # Download each selected entry's fasta file
             for line in listing:
                 line = line.strip() # Want last item, so strip EOL
                 fname = line.split()[-1] # Get the file name
-                
+
                 # Skip any files that we do not want to download
                 if self.banned_file(fname):
                     continue
@@ -624,7 +624,7 @@ class GUI:
         print('contams:', contam_location)
         ensembl_dir_name = r"Ensembl_v{}".format(self.release)
         os.chdir(os.path.join(self.abs_dl_path, ensembl_dir_name))
-        
+
         # Add forward/reverse/contams, as specified by checkboxes
         self.process_databases(new_fasta_file, contam_location)
 
@@ -639,15 +639,15 @@ class GUI:
         both = False
         decoy_contams = reverse_values[0]
         target_contams = reverse_values[1]
-        
+
         if decoy_contams:
             both = True
         if target_contams:
             forward = True
-            
-        if decoy_contams or target_contams:        
+
+        if decoy_contams or target_contams:
             reverse_fasta.main(fasta_file, forward, reverse, both, contam_path=contam_location)
-        
+
     def banned_file(self, fname):
         """False if fname in banned list."""
         skip = False
@@ -655,12 +655,12 @@ class GUI:
             if ban.lower() in fname.lower():
                 skip = True
         return skip
-    
+
     def update_status_bar(self, _text):
         """Updates status bar with new text"""
         self.status_bar.config(text=_text)
         self.root.update_idletasks()
-        
+
     def quit_gui(self):
         """Quits the GUI application."""
         self.logout()   # close the FTP connection
@@ -684,26 +684,26 @@ class GUI:
 ##        option_frame = LabelFrame(self.root, text="Options")
         option_frame = Frame(self.root)
         option_frame.pack(side=TOP, padx=1, pady=5)
-        
+
         # Search Window
         ## Main Frame
         search_window_frame = LabelFrame(option_frame, text="Filters:")
         search_window_frame.pack(side=TOP, fill=BOTH, expand=YES, padx=0, pady=5)
-        
+
         # Create search bars/buttons
         species_frame = Frame(search_window_frame)
         species_frame.pack(fill=X, padx=5, pady=5)
         species_label = Label(species_frame, text="Species Name:")
         species_label.pack(side=LEFT, padx=5, pady=5)
         self.search_species = Entry(species_frame)
-        self.search_species.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=5)        
+        self.search_species.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=5)
 
         tax_frame = Frame(search_window_frame)
         tax_frame.pack(fill=X, padx=5, pady=5)
         tax_label = Label(tax_frame, text="Taxonomy ID:")
         tax_label.pack(side=LEFT, padx=5, pady=5)
         self.search_tax = Entry(tax_frame)
-        self.search_tax.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=5)       
+        self.search_tax.pack(side=RIGHT, fill=X, expand=YES, padx=5, pady=5)
 
         ## Show filtered list button and reset filters button
         filter_button = Button(search_window_frame, text="Show Filtered List", command=self.get_filtered_proteome_list)
@@ -749,19 +749,19 @@ class GUI:
                 self.tree_left.heading(col, text=col.title(), anchor=W,
                                        command=lambda col_=col: self.sort_text_column(self.tree_left, col_))
                 self.tree_left.column(col, minwidth=25, width=150, stretch=NO)
-    
-        # Add scrollbars to the TreeView 
+
+        # Add scrollbars to the TreeView
         left_scroll_Y = Scrollbar(left_tree_frame, orient=VERTICAL)
         left_scroll_Y.pack(side=RIGHT, fill=Y)
-        
+
         left_scroll_X = Scrollbar(self.tree_left, orient=HORIZONTAL)
-        left_scroll_X.pack(side=BOTTOM, fill=X)    
+        left_scroll_X.pack(side=BOTTOM, fill=X)
 
         self.tree_left.config(yscrollcommand=left_scroll_Y.set, xscrollcommand=left_scroll_X.set)
         left_scroll_Y.config(command = self.tree_left.yview)
         left_scroll_X.config(command = self.tree_left.xview)
-        
-        
+
+
         ## Menu Buttons
         button_frame = LabelFrame(entry_frame, text="Menu Buttons")
         button_frame.pack(side=LEFT)
@@ -780,12 +780,12 @@ class GUI:
             button = Button(button_frame, text=btn_name,
                             command=btn_command)
             button.pack()
-            button.config(width=btn_width)        
+            button.config(width=btn_width)
 
         ## Right Window
         right_tree_frame = LabelFrame(entry_frame, text="Selected Proteomes")
         right_tree_frame.pack(fill=BOTH, expand=YES, side=RIGHT, padx=5, pady=10)
-        
+
         self.tree_right = Treeview(right_tree_frame, columns=self.headers, show="headings")
         self.tree_right.pack(fill=BOTH, expand=YES, side=LEFT, padx=5, pady=5)
         for col in self.headers:
@@ -797,7 +797,7 @@ class GUI:
                 self.tree_right.heading(col, text=col.title(), anchor=W,
                                        command=lambda col_=col: self.sort_text_column(self.tree_right, col_))
                 self.tree_right.column(col, minwidth=25, width=150, stretch=NO)
-        
+
         right_scroll_X = Scrollbar(self.tree_right, orient=HORIZONTAL)
         right_scroll_X.pack(side=BOTTOM, fill=X)
 
@@ -808,7 +808,7 @@ class GUI:
         right_scroll_Y.config(command = self.tree_right.yview)
         right_scroll_X.config(command = self.tree_right.xview)
 
-        
+
         # Miscellaneous Frame
         misc_frame = Frame(self.root)
         misc_frame.pack(side=BOTTOM, fill=X, padx=5, pady=5)
@@ -818,7 +818,7 @@ class GUI:
         status_frame.pack(side=TOP, fill=X, padx=5, pady=5)
         self.status_bar = Label(status_frame, text="", relief=SUNKEN)
         self.status_bar.pack(fill=X, padx=5, pady=5)
-        
+
         # open the FTP connection
         self.login()
         self.load_defaults()  # initial import of defaults
@@ -836,7 +836,7 @@ if __name__ == '__main__':
     HEADERS = ["COMMON NAME", "LATIN NAME", "TAX ID", "ENSEMBL ASSEMBLY"]
     BANNED = ["README", "CHECKSUMS", "abinitio.fa.gz"]
     SCRIPT_LOCATION = os.path.dirname(os.path.realpath(__file__))
-    DEFAULT_CONTAMS = 'Thermo_contams_fixed.fasta'
+    DEFAULT_CONTAMS = 'Thermo_contams.fasta'
 
     # message to user
     print('Starting Ensembl_proteome_manager.py - querying Ensembl...')
@@ -847,6 +847,6 @@ if __name__ == '__main__':
     DATA = RESPONSE.read()
     TEXT = DATA.decode('utf-8')
 
-    # create the GUI object and start program    
+    # create the GUI object and start program
     gui = GUI(FTP_URL, PROT_PATH, TEXT, HEADERS, BANNED, SCRIPT_LOCATION, DEFAULT_CONTAMS)
     gui.create_gui()
